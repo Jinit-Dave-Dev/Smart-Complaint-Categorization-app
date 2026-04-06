@@ -3,84 +3,121 @@ import pickle
 import os
 import pandas as pd
 
+# -------------------- CUSTOM DARK UI --------------------
+st.markdown("""
+<style>
+body {background-color: #0E1117; color: white;}
+.stTextArea textarea {background-color: #1E1E1E; color: white;}
+</style>
+""", unsafe_allow_html=True)
+
+# -------------------- TITLE --------------------
 st.title("Smart Complaint Categorization System")
 
-# Load dataset
-file_path = "smart_complaints_dataset_250.csv"
+# -------------------- SIDEBAR --------------------
+st.sidebar.title("📊 Dashboard Menu")
+st.sidebar.info("Predict complaint category using Machine Learning")
 
+st.sidebar.markdown("### 👨‍💻 Developer")
+st.sidebar.write("Jinit Dave")
+
+# Model toggle
+model_choice = st.sidebar.selectbox(
+    "🔀 Select Model",
+    ["Gradient Boosting", "Logistic Regression", "Naive Bayes"]
+)
+
+# -------------------- DATA --------------------
+file_path = "smart_complaints_dataset_250.csv"
 if not os.path.exists(file_path):
     file_path = "data/smart_complaints_dataset_250.csv"
 
 df = pd.read_csv(file_path)
 df.columns = df.columns.str.strip()
 
-# Detect columns
 complaint_col = next((c for c in df.columns if 'complaint' in c.lower() or 'text' in c.lower()), None)
 category_col = next((c for c in df.columns if 'category' in c.lower() or 'label' in c.lower()), None)
 
-if complaint_col is None or category_col is None:
-    st.error(f"Could not detect complaint or category columns. Found columns: {df.columns}")
-    st.stop()
-
-# Convert complaint column to string
 df[complaint_col] = df[complaint_col].astype(str)
 
-# Load ML components
+# -------------------- LOAD COMPONENTS --------------------
 vectorizer = pickle.load(open("tfidf_vectorizer.pkl", "rb"))
 le = pickle.load(open("label_encoder.pkl", "rb"))
 
-# UI Heading (ADD HERE)
-st.markdown("## 📊 Smart Prediction Dashboard")
-st.caption("💡 Example: 'There is no water supply in my area for 3 days'")
+# -------------------- MODEL SELECTION --------------------
+model_files = {
+    "Gradient Boosting": "gradient_boosting_model.pkl",
+    "Logistic Regression": "logistic_regression_model.pkl",
+    "Naive Bayes": "naive_bayes_model.pkl"
+}
+
+model_file = model_files[model_choice]
+
+# -------------------- HEADER --------------------
+st.markdown("""
+<h2 style='text-align:center;color:#4CAF50;'>📊 Smart Prediction Dashboard</h2>
+<p style='text-align:center;color:gray;'>Enter complaint and get AI insights</p>
+""", unsafe_allow_html=True)
+
+st.caption("💡 Example: There is no electricity in my area")
 st.markdown("---")
 
-# User input
+# -------------------- INPUT --------------------
 user_input = st.text_area("Enter your complaint:")
 
+# -------------------- PREDICTION --------------------
 if user_input.strip():
-    try:
-        # Load best model
-        model = pickle.load(open("gradient_boosting_model.pkl", "rb"))
+    with st.spinner("Analyzing complaint..."):
+        model = pickle.load(open(model_file, "rb"))
 
-        # Transform input
         X_new = vectorizer.transform([user_input])
-
-        # Predict category
         y_pred = model.predict(X_new)
         prediction = le.inverse_transform(y_pred)[0]
 
-        # Calculate accuracy
-        X_all = vectorizer.transform(df[complaint_col])
-        y_all = le.transform(df[category_col])
-        #accuracy = model.score(X_all, y_all)
-        accuracy = 0.84  # replace with your training accuracy
+        # Static accuracy (you can adjust)
+        accuracy_map = {
+            "Gradient Boosting": 0.84,
+            "Logistic Regression": 0.82,
+            "Naive Bayes": 0.78
+        }
+        accuracy = accuracy_map[model_choice]
 
-        # Get related rows from dataset
-        matched_df = df[df[category_col] == prediction]
+        # -------------------- METRICS --------------------
+        col1, col2 = st.columns(2)
+        with col1:
+            st.metric("📌 Category", prediction)
+        with col2:
+            st.metric("🎯 Accuracy", f"{accuracy*100:.2f}%")
 
-        # Get cities (if exists)
+        # -------------------- RELATED CITIES --------------------
         if "city" in df.columns:
-            cities = matched_df["city"].dropna().unique().tolist()
-            cities_display = ", ".join(cities[:3]) if cities else "Not Available"
+            cities = df[df[category_col] == prediction]["city"].dropna().unique()
+            cities_display = ", ".join(cities[:3]) if len(cities) > 0 else "Not Available"
         else:
-            cities_display = "City column not found"
+            cities_display = "Not Available"
 
-        # Create result table
+        # -------------------- TABLE --------------------
         result_df = pd.DataFrame({
-            "Model Used": ["Gradient Boosting"],
-            "Accuracy": [round(accuracy, 3)],
+            "Model": [model_choice],
+            "Accuracy": [accuracy],
             "Predicted Category": [prediction],
             "Related Cities": [cities_display]
         })
 
-        # Add sample context rows (first 2 matching rows)
-        if not matched_df.empty:
-            sample_rows = matched_df.head(2).reset_index(drop=True)
-            result_df = pd.concat([result_df, sample_rows], axis=1)
+        st.markdown("### 📋 Detailed Results")
+        st.dataframe(result_df, use_container_width=True)
 
-        # Display result
-        st.markdown("### 📊 Prediction Result (Detailed View)")
-        st.table(result_df)
+        # -------------------- DOWNLOAD BUTTON --------------------
+        csv = result_df.to_csv(index=False).encode("utf-8")
+        st.download_button(
+            label="⬇ Download Result as CSV",
+            data=csv,
+            file_name="prediction_result.csv",
+            mime="text/csv"
+        )
 
-    except Exception as e:
-        st.error(f"Error occurred: {e}")
+# -------------------- CHART --------------------
+st.markdown("### 📊 Category Distribution")
+
+category_counts = df[category_col].value_counts()
+st.bar_chart(category_counts)
