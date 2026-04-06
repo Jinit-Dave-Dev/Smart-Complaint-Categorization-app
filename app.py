@@ -42,7 +42,7 @@ if not os.path.exists(vectorizer_path):
 
 model = pickle.load(open(model_path, "rb"))
 vectorizer = pickle.load(open(vectorizer_path, "rb"))
-if not os.path.exists(models_folder):
+#if not os.path.exists(models_folder):
     st.error(f"Models folder not found: {models_folder}")
     st.stop()
 
