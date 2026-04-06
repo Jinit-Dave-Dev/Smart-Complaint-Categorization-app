@@ -1,0 +1,251 @@
+complaint_id,complaints,category,priority,status,city
+1,Overflowing dustbins in public area,sanitation,low,open,Rajkot
+2,Low water pressure in pipelines,water,high,in progress,Rajkot
+3,Broken roads causing water logging,roads,medium,closed,Surat
+4,Street lights not working properly,electricity,high,closed,Vadodara
+5,Contaminated drinking water issue,water,high,in progress,Ahmedabad
+6,Garbage not collected regularly,sanitation,low,closed,Ahmedabad
+7,Garbage not collected regularly,sanitation,low,in progress,Rajkot
+8,Blocked drainage system causing smell,sanitation,high,closed,Vadodara
+9,Irregular water supply timing,water,low,open,Surat
+10,Potholes causing vehicle damage,roads,high,closed,Surat
+11,Blocked drainage system causing smell,sanitation,low,in progress,Vadodara
+12,Poor road maintenance in residential area,roads,high,closed,Vadodara
+13,Poor road maintenance in residential area,roads,high,closed,Rajkot
+14,Potholes causing vehicle damage,roads,low,open,Rajkot
+15,Poor road maintenance in residential area,roads,high,in progress,Vadodara
+16,Contaminated drinking water issue,water,low,open,Rajkot
+17,Broken roads causing water logging,roads,medium,open,Ahmedabad
+18,Transformer malfunction causing electricity disruption,electricity,low,open,Ahmedabad
+19,Sewage leakage near homes,sanitation,low,in progress,Rajkot
+20,Transformer malfunction causing electricity disruption,electricity,low,in progress,Rajkot
+21,Power outage during night hours,electricity,high,closed,Rajkot
+22,Poor cleanliness in streets,sanitation,medium,open,Vadodara
+23,Broken roads causing water logging,roads,high,open,Surat
+24,Uneven road surface creating traffic issues,roads,low,open,Vadodara
+25,Uneven road surface creating traffic issues,roads,low,open,Vadodara
+26,Road cracks increasing accidents risk,roads,high,open,Rajkot
+27,Low water pressure in pipelines,water,high,closed,Rajkot
+28,Overflowing dustbins in public area,sanitation,high,closed,Surat
+29,Road cracks increasing accidents risk,roads,high,open,Vadodara
+30,Power outage during night hours,electricity,low,in progress,Vadodara
+31,Broken roads causing water logging,roads,low,closed,Rajkot
+32,Sewage leakage near homes,sanitation,medium,in progress,Ahmedabad
+33,Water supply interruption in locality,water,low,closed,Vadodara
+34,Street lights not working properly,electricity,high,closed,Rajkot
+35,Voltage fluctuation damaging appliances,electricity,medium,open,Rajkot
+36,Broken roads causing water logging,roads,high,closed,Vadodara
+37,Broken roads causing water logging,roads,low,open,Surat
+38,Voltage fluctuation damaging appliances,electricity,low,closed,Rajkot
+39,Power outage during night hours,electricity,medium,closed,Ahmedabad
+40,Frequent power cuts in area,electricity,medium,in progress,Vadodara
+41,Street lights not working properly,electricity,low,closed,Rajkot
+42,Poor cleanliness in streets,sanitation,high,closed,Vadodara
+43,Overflowing dustbins in public area,sanitation,low,closed,Surat
+44,Broken roads causing water logging,roads,medium,open,Ahmedabad
+45,Water leakage in main pipeline,water,medium,in progress,Ahmedabad
+46,Blocked drainage system causing smell,sanitation,medium,open,Surat
+47,Power outage during night hours,electricity,high,in progress,Rajkot
+48,Irregular water supply timing,water,high,closed,Vadodara
+49,Frequent power cuts in area,electricity,medium,closed,Rajkot
+50,Garbage not collected regularly,sanitation,high,open,Ahmedabad
+51,Poor road maintenance in residential area,roads,medium,closed,Vadodara
+52,Poor cleanliness in streets,sanitation,medium,in progress,Ahmedabad
+53,Street lights not working properly,electricity,medium,closed,Surat
+54,Irregular water supply timing,water,low,closed,Rajkot
+55,Street lights not working properly,electricity,high,open,Ahmedabad
+56,Water leakage in main pipeline,water,high,open,Surat
+57,Low water pressure in pipelines,water,low,closed,Vadodara
+58,Blocked drainage system causing smell,sanitation,high,open,Ahmedabad
+59,Poor cleanliness in streets,sanitation,low,open,Rajkot
+60,Potholes causing vehicle damage,roads,high,closed,Ahmedabad
+61,Uneven road surface creating traffic issues,roads,low,open,Rajkot
+62,Road cracks increasing accidents risk,roads,medium,in progress,Rajkot
+63,Poor road maintenance in residential area,roads,low,closed,Vadodara
+64,Poor road maintenance in residential area,roads,low,in progress,Surat
+65,Garbage not collected regularly,sanitation,medium,open,Rajkot
+66,Sewage leakage near homes,sanitation,low,in progress,Vadodara
+67,Poor cleanliness in streets,sanitation,medium,in progress,Vadodara
+68,Frequent power cuts in area,electricity,high,closed,Vadodara
+69,Overflowing dustbins in public area,sanitation,medium,closed,Ahmedabad
+70,Water supply interruption in locality,water,low,closed,Rajkot
+71,Low water pressure in pipelines,water,medium,in progress,Vadodara
+72,Power outage during night hours,electricity,medium,in progress,Vadodara
+73,Contaminated drinking water issue,water,high,closed,Vadodara
+74,Garbage not collected regularly,sanitation,medium,closed,Vadodara
+75,Uneven road surface creating traffic issues,roads,low,in progress,Ahmedabad
+76,Garbage not collected regularly,sanitation,low,closed,Surat
+77,Blocked drainage system causing smell,sanitation,high,in progress,Ahmedabad
+78,Irregular water supply timing,water,medium,closed,Surat
+79,Street lights not working properly,electricity,high,closed,Rajkot
+80,Contaminated drinking water issue,water,high,open,Rajkot
+81,Overflowing dustbins in public area,sanitation,medium,in progress,Surat
+82,Poor road maintenance in residential area,roads,medium,open,Vadodara
+83,Voltage fluctuation damaging appliances,electricity,medium,closed,Vadodara
+84,Frequent power cuts in area,electricity,high,closed,Rajkot
+85,Contaminated drinking water issue,water,high,open,Surat
+86,Blocked drainage system causing smell,sanitation,high,in progress,Rajkot
+87,Poor road maintenance in residential area,roads,medium,open,Surat
+88,Water supply interruption in locality,water,high,closed,Vadodara
+89,Water leakage in main pipeline,water,low,open,Vadodara
+90,Contaminated drinking water issue,water,medium,open,Vadodara
+91,Road cracks increasing accidents risk,roads,medium,in progress,Surat
+92,Potholes causing vehicle damage,roads,medium,open,Ahmedabad
+93,Street lights not working properly,electricity,high,in progress,Rajkot
+94,Transformer malfunction causing electricity disruption,electricity,low,in progress,Ahmedabad
+95,Water supply interruption in locality,water,medium,closed,Surat
+96,Poor cleanliness in streets,sanitation,high,in progress,Surat
+97,Sewage leakage near homes,sanitation,high,open,Vadodara
+98,Broken roads causing water logging,roads,medium,in progress,Ahmedabad
+99,Street lights not working properly,electricity,low,closed,Ahmedabad
+100,Power outage during night hours,electricity,medium,closed,Vadodara
+101,Blocked drainage system causing smell,sanitation,high,in progress,Vadodara
+102,Voltage fluctuation damaging appliances,electricity,high,closed,Surat
+103,Blocked drainage system causing smell,sanitation,high,open,Ahmedabad
+104,Overflowing dustbins in public area,sanitation,high,closed,Vadodara
+105,Garbage not collected regularly,sanitation,medium,in progress,Vadodara
+106,Garbage not collected regularly,sanitation,medium,in progress,Vadodara
+107,Frequent power cuts in area,electricity,high,in progress,Vadodara
+108,Power outage during night hours,electricity,high,closed,Surat
+109,Garbage not collected regularly,sanitation,high,open,Rajkot
+110,Blocked drainage system causing smell,sanitation,low,open,Rajkot
+111,Uneven road surface creating traffic issues,roads,medium,open,Rajkot
+112,Water leakage in main pipeline,water,low,in progress,Surat
+113,Transformer malfunction causing electricity disruption,electricity,high,open,Rajkot
+114,Broken roads causing water logging,roads,high,in progress,Rajkot
+115,Poor road maintenance in residential area,roads,medium,open,Ahmedabad
+116,Overflowing dustbins in public area,sanitation,high,in progress,Vadodara
+117,Transformer malfunction causing electricity disruption,electricity,medium,open,Surat
+118,Low water pressure in pipelines,water,medium,in progress,Vadodara
+119,Water supply interruption in locality,water,medium,closed,Rajkot
+120,Potholes causing vehicle damage,roads,high,in progress,Vadodara
+121,Overflowing dustbins in public area,sanitation,low,in progress,Vadodara
+122,Garbage not collected regularly,sanitation,low,closed,Surat
+123,Broken roads causing water logging,roads,low,closed,Vadodara
+124,Water leakage in main pipeline,water,medium,open,Vadodara
+125,Blocked drainage system causing smell,sanitation,medium,closed,Ahmedabad
+126,Blocked drainage system causing smell,sanitation,medium,open,Ahmedabad
+127,Frequent power cuts in area,electricity,medium,open,Rajkot
+128,Contaminated drinking water issue,water,high,open,Rajkot
+129,Broken roads causing water logging,roads,high,closed,Vadodara
+130,Voltage fluctuation damaging appliances,electricity,medium,closed,Ahmedabad
+131,Sewage leakage near homes,sanitation,medium,closed,Vadodara
+132,Water leakage in main pipeline,water,low,in progress,Surat
+133,Water supply interruption in locality,water,high,in progress,Rajkot
+134,Irregular water supply timing,water,low,open,Rajkot
+135,Broken roads causing water logging,roads,low,open,Ahmedabad
+136,Voltage fluctuation damaging appliances,electricity,high,in progress,Surat
+137,Voltage fluctuation damaging appliances,electricity,high,in progress,Ahmedabad
+138,Water supply interruption in locality,water,low,in progress,Rajkot
+139,Overflowing dustbins in public area,sanitation,high,closed,Rajkot
+140,Uneven road surface creating traffic issues,roads,low,open,Ahmedabad
+141,Water leakage in main pipeline,water,medium,closed,Rajkot
+142,Transformer malfunction causing electricity disruption,electricity,medium,closed,Rajkot
+143,Transformer malfunction causing electricity disruption,electricity,high,in progress,Ahmedabad
+144,Blocked drainage system causing smell,sanitation,medium,in progress,Vadodara
+145,Road cracks increasing accidents risk,roads,medium,in progress,Surat
+146,Power outage during night hours,electricity,low,open,Ahmedabad
+147,Uneven road surface creating traffic issues,roads,medium,in progress,Surat
+148,Street lights not working properly,electricity,low,in progress,Surat
+149,Poor cleanliness in streets,sanitation,high,open,Ahmedabad
+150,Overflowing dustbins in public area,sanitation,low,closed,Rajkot
+151,Poor cleanliness in streets,sanitation,medium,closed,Vadodara
+152,Uneven road surface creating traffic issues,roads,low,closed,Rajkot
+153,Sewage leakage near homes,sanitation,low,in progress,Rajkot
+154,Frequent power cuts in area,electricity,medium,closed,Surat
+155,Street lights not working properly,electricity,low,open,Surat
+156,Potholes causing vehicle damage,roads,medium,in progress,Surat
+157,Water leakage in main pipeline,water,medium,open,Ahmedabad
+158,Uneven road surface creating traffic issues,roads,medium,open,Vadodara
+159,Power outage during night hours,electricity,medium,in progress,Vadodara
+160,Water leakage in main pipeline,water,high,in progress,Surat
+161,Road cracks increasing accidents risk,roads,medium,in progress,Rajkot
+162,Transformer malfunction causing electricity disruption,electricity,medium,closed,Vadodara
+163,Garbage not collected regularly,sanitation,medium,open,Rajkot
+164,Broken roads causing water logging,roads,low,open,Vadodara
+165,Garbage not collected regularly,sanitation,medium,in progress,Surat
+166,Road cracks increasing accidents risk,roads,medium,closed,Ahmedabad
+167,Uneven road surface creating traffic issues,roads,low,open,Vadodara
+168,Road cracks increasing accidents risk,roads,medium,open,Ahmedabad
+169,Garbage not collected regularly,sanitation,medium,closed,Surat
+170,Contaminated drinking water issue,water,high,open,Ahmedabad
+171,Overflowing dustbins in public area,sanitation,high,open,Rajkot
+172,Water supply interruption in locality,water,high,closed,Ahmedabad
+173,Power outage during night hours,electricity,high,open,Surat
+174,Poor cleanliness in streets,sanitation,medium,closed,Ahmedabad
+175,Street lights not working properly,electricity,low,open,Rajkot
+176,Street lights not working properly,electricity,low,open,Ahmedabad
+177,Uneven road surface creating traffic issues,roads,high,closed,Surat
+178,Water supply interruption in locality,water,medium,open,Vadodara
+179,Poor cleanliness in streets,sanitation,high,in progress,Surat
+180,Broken roads causing water logging,roads,low,open,Ahmedabad
+181,Garbage not collected regularly,sanitation,medium,in progress,Surat
+182,Uneven road surface creating traffic issues,roads,low,open,Vadodara
+183,Voltage fluctuation damaging appliances,electricity,low,closed,Rajkot
+184,Overflowing dustbins in public area,sanitation,medium,closed,Surat
+185,Low water pressure in pipelines,water,medium,open,Surat
+186,Contaminated drinking water issue,water,medium,open,Vadodara
+187,Broken roads causing water logging,roads,medium,closed,Vadodara
+188,Voltage fluctuation damaging appliances,electricity,low,closed,Surat
+189,Poor road maintenance in residential area,roads,low,open,Surat
+190,Road cracks increasing accidents risk,roads,high,in progress,Rajkot
+191,Irregular water supply timing,water,high,in progress,Surat
+192,Water leakage in main pipeline,water,medium,open,Ahmedabad
+193,Blocked drainage system causing smell,sanitation,high,open,Vadodara
+194,Low water pressure in pipelines,water,low,closed,Ahmedabad
+195,Frequent power cuts in area,electricity,low,in progress,Rajkot
+196,Poor cleanliness in streets,sanitation,medium,open,Ahmedabad
+197,Frequent power cuts in area,electricity,high,open,Ahmedabad
+198,Blocked drainage system causing smell,sanitation,medium,closed,Vadodara
+199,Broken roads causing water logging,roads,medium,open,Ahmedabad
+200,Garbage not collected regularly,sanitation,medium,closed,Surat
+201,Broken roads causing water logging,roads,medium,closed,Rajkot
+202,Transformer malfunction causing electricity disruption,electricity,low,closed,Vadodara
+203,Irregular water supply timing,water,low,open,Surat
+204,Frequent power cuts in area,electricity,high,closed,Rajkot
+205,Poor road maintenance in residential area,roads,medium,open,Vadodara
+206,Transformer malfunction causing electricity disruption,electricity,medium,closed,Vadodara
+207,Poor road maintenance in residential area,roads,low,open,Vadodara
+208,Transformer malfunction causing electricity disruption,electricity,high,closed,Ahmedabad
+209,Frequent power cuts in area,electricity,high,open,Ahmedabad
+210,Overflowing dustbins in public area,sanitation,low,closed,Vadodara
+211,Street lights not working properly,electricity,low,closed,Ahmedabad
+212,Potholes causing vehicle damage,roads,high,in progress,Surat
+213,Road cracks increasing accidents risk,roads,low,open,Ahmedabad
+214,Road cracks increasing accidents risk,roads,low,closed,Vadodara
+215,Low water pressure in pipelines,water,medium,in progress,Ahmedabad
+216,Street lights not working properly,electricity,high,open,Surat
+217,Potholes causing vehicle damage,roads,medium,in progress,Surat
+218,Road cracks increasing accidents risk,roads,low,in progress,Ahmedabad
+219,Overflowing dustbins in public area,sanitation,medium,open,Surat
+220,Water supply interruption in locality,water,medium,in progress,Rajkot
+221,Voltage fluctuation damaging appliances,electricity,medium,in progress,Rajkot
+222,Potholes causing vehicle damage,roads,low,in progress,Ahmedabad
+223,Street lights not working properly,electricity,low,in progress,Vadodara
+224,Power outage during night hours,electricity,high,in progress,Vadodara
+225,Street lights not working properly,electricity,low,closed,Rajkot
+226,Power outage during night hours,electricity,low,open,Rajkot
+227,Voltage fluctuation damaging appliances,electricity,high,open,Surat
+228,Voltage fluctuation damaging appliances,electricity,high,closed,Surat
+229,Irregular water supply timing,water,high,open,Vadodara
+230,Frequent power cuts in area,electricity,high,closed,Vadodara
+231,Power outage during night hours,electricity,low,in progress,Vadodara
+232,Uneven road surface creating traffic issues,roads,high,open,Rajkot
+233,Blocked drainage system causing smell,sanitation,high,open,Rajkot
+234,Sewage leakage near homes,sanitation,medium,closed,Vadodara
+235,Poor cleanliness in streets,sanitation,low,open,Ahmedabad
+236,Blocked drainage system causing smell,sanitation,low,closed,Vadodara
+237,Low water pressure in pipelines,water,medium,in progress,Vadodara
+238,Garbage not collected regularly,sanitation,high,closed,Rajkot
+239,Garbage not collected regularly,sanitation,medium,closed,Rajkot
+240,Low water pressure in pipelines,water,medium,open,Ahmedabad
+241,Water supply interruption in locality,water,medium,open,Vadodara
+242,Water supply interruption in locality,water,high,open,Surat
+243,Garbage not collected regularly,sanitation,high,open,Ahmedabad
+244,Uneven road surface creating traffic issues,roads,medium,open,Vadodara
+245,Irregular water supply timing,water,high,in progress,Rajkot
+246,Water supply interruption in locality,water,low,in progress,Vadodara
+247,Blocked drainage system causing smell,sanitation,low,closed,Rajkot
+248,Broken roads causing water logging,roads,low,closed,Ahmedabad
+249,Irregular water supply timing,water,medium,open,Rajkot
+250,Water leakage in main pipeline,water,low,closed,Ahmedabad
