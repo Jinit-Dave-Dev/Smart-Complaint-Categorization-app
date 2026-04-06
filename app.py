@@ -25,7 +25,7 @@ if complaint_col is None or category_col is None:
     st.error(f"Could not detect complaint or category columns. Found columns: {df.columns}")
     st.stop()
 
-models_folder = os.path.join(project_folder, "models")
+models_folder = "models"
 if not os.path.exists(models_folder):
     st.error(f"Models folder not found: {models_folder}")
     st.stop()
