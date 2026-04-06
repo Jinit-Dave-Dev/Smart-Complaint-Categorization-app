@@ -81,8 +81,8 @@ if user_input.strip():
     })
     
 
-    for col in df.columns:
-        df_pred[col] = [df[col].iloc[0]] * len(df_pred)
+    #for col in df.columns:
+        #df_pred[col] = [df[col].iloc[0]] * len(df_pred)
     
     st.markdown("### Predictions from all models with accuracy & context")
     st.table(df_pred)
