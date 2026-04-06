@@ -51,46 +51,36 @@ df[complaint_col] = df[complaint_col].astype(str)
 X = vectorizer.transform(df[complaint_col])
 y_true = le.transform(df[category_col])
 
-#model_accuracies = {}
-#for model_name, file_name in model_map.items():
-    #with open(file_name, "rb") as f:
-        #model = pickle.load(f)
-    #y_pred = model.predict(X)
-    #model_accuracies[model_name] = round(accuracy_score(y_true, y_pred), 3)
+model_accuracies = {}
+for model_name, file_name in model_map.items():
+    with open(file_name, "rb") as f:
+        model = pickle.load(f)
+    y_pred = model.predict(X)
+    model_accuracies[model_name] = round(accuracy_score(y_true, y_pred), 3)
 
-#st.title("Smart Complaint Categorization (Professional Version)")
+st.title("Smart Complaint Categorization (Professional Version)")
 
 user_input = st.text_area("Enter your complaint:")
 
 if user_input.strip():
     X_new = vectorizer.transform([str(user_input)])
-    if user_input.strip():
-# Use BEST model only (higher accuracy)
-model = pickle.load(open("gradient_boosting_model.pkl", "rb"))
-
-X_new = vectorizer.transform([str(user_input)])
-y_pred = model.predict(X_new)
-
-prediction = le.inverse_transform(y_pred)[0]
-
-st.success(f"Predicted Category: {prediction}")
-st.info("Model Used: Gradient Boosting (High Accuracy)")
-    #predictions = {}
-    #for model_name, file_name in model_map.items():
-        #with open(file_name, "rb") as f:
-            #model = pickle.load(f)
-        #y_pred = model.predict(X_new)
-        #predictions[model_name] = le.inverse_transform(y_pred)[0]
-   
-
-    #df_pred = pd.DataFrame({
-        #"Model": list(predictions.keys()),
-        #"Accuracy": [model_accuracies[m] for m in predictions.keys()],
-        #"Predicted Category": list(predictions.values())
-    #})
-   
-    f#or col in df.columns:
-        #df_pred[col] = [df[col].iloc[0]] * len(df_pred)
     
-    #st.markdown("### Predictions from all models with accuracy & context")
-    #st.table(df_pred)
+    predictions = {}
+    for model_name, file_name in model_map.items():
+        with open(file_name, "rb") as f:
+            model = pickle.load(f)
+        y_pred = model.predict(X_new)
+        predictions[model_name] = le.inverse_transform(y_pred)[0]
+   
+
+    df_pred = pd.DataFrame({
+        "Model": list(predictions.keys()),
+        "Accuracy": [model_accuracies[m] for m in predictions.keys()],
+        "Predicted Category": list(predictions.values())
+    })
+   
+    for col in df.columns:
+        df_pred[col] = [df[col].iloc[0]] * len(df_pred)
+    
+    st.markdown("### Predictions from all models with accuracy & context")
+    st.table(df_pred)
