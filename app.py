@@ -25,26 +25,25 @@ if complaint_col is None or category_col is None:
     st.error(f"Could not detect complaint or category columns. Found columns: {df.columns}")
     st.stop()
 
-#models_folder = "models"
+
 #model = pickle.load(open("model.pkl", "rb"))
 #vectorizer = pickle.load(open("vectorizer.pkl", "rb"))
 model_path = "logistic_regression_model.pkl"
 model_path = "gradient_boosting_model.pkl"
 vectorizer_path = "tfidf_vectorizer.pkl"
 
-if not os.path.exists(model_path):
-    st.error(f"Model file not found: {model_path}")
-    st.stop()
-
-if not os.path.exists(vectorizer_path):
-    st.error(f"Vectorizer file not found: {vectorizer_path}")
-    st.stop()
-
-model = pickle.load(open(model_path, "rb"))
+# Load label encoder directly (since files are in root)
+le = pickle.load(open("label_encoder.pkl", "rb"))
 vectorizer = pickle.load(open(vectorizer_path, "rb"))
-#if not os.path.exists(models_folder):
-    #st.error(f"Models folder not found: {models_folder}")
-    #st.stop()
+# Manually define available models (since no models folder)
+model_map = {
+    "Logistic Regression": "logistic_regression_model.pkl",
+    "Naive Bayes": "naive_bayes_model.pkl",
+    "Random Forest": "random_forest_model.pkl",
+    "Decision Tree": "decision_tree_model.pkl",
+    "Gradient Boosting": "gradient_boosting_model.pkl",
+    "Linear SVC": "linear_svc_model.pkl"
+}
 
 with open(os.path.join(models_folder, "tfidf_vectorizer.pkl"), "rb") as f:
     vectorizer = pickle.load(f)
@@ -65,7 +64,7 @@ y_true = le.transform(df[category_col])
 
 model_accuracies = {}
 for model_name, file_name in model_map.items():
-    with open(os.path.join(models_folder, file_name), "rb") as f:
+    with open(file_name, "rb") as f:
         model = pickle.load(f)
     y_pred = model.predict(X)
     model_accuracies[model_name] = round(accuracy_score(y_true, y_pred), 3)
@@ -80,7 +79,7 @@ if user_input.strip():
 
     predictions = {}
     for model_name, file_name in model_map.items():
-        with open(os.path.join(models_folder, file_name), "rb") as f:
+        with open(file_name, "rb") as f:
             model = pickle.load(f)
         y_pred = model.predict(X_new)
         predictions[model_name] = le.inverse_transform(y_pred)[0]
