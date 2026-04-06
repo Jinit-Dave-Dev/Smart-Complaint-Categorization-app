@@ -62,8 +62,8 @@ for model_name, file_name in model_map.items():
 
 user_input = st.text_area("Enter your complaint:")
 
-#if user_input.strip():
-    #X_new = vectorizer.transform([str(user_input)])
+if user_input.strip():
+    X_new = vectorizer.transform([str(user_input)])
     
     predictions = {}
     for model_name, file_name in model_map.items():
