@@ -25,7 +25,9 @@ if complaint_col is None or category_col is None:
     st.error(f"Could not detect complaint or category columns. Found columns: {df.columns}")
     st.stop()
 
-models_folder = "models"
+#models_folder = "models"
+model = pickle.load(open("model.pkl", "rb"))
+vectorizer = pickle.load(open("vectorizer.pkl", "rb"))
 if not os.path.exists(models_folder):
     st.error(f"Models folder not found: {models_folder}")
     st.stop()
