@@ -72,14 +72,29 @@ if user_input.strip():
             model = pickle.load(f)
         y_pred = model.predict(X_new)
         predictions[model_name] = le.inverse_transform(y_pred)[0]
-    
+    # Get cities related to predicted categories
+city_results = {}
 
-    df_pred = pd.DataFrame({
-        "Model": list(predictions.keys()),
-        "Accuracy": [model_accuracies[m] for m in predictions.keys()],
-        "Predicted Category": list(predictions.values())
-    })
+for model_name, category in predictions.items():
+    filtered_df = df[df[category_col] == category]
     
+    if "city" in df.columns:
+        cities = filtered_df["city"].dropna().unique().tolist()
+        city_results[model_name] = ", ".join(cities[:3])  # top 3 cities
+    else:
+        city_results[model_name] = "City column not found"
+
+    #df_pred = pd.DataFrame({
+        #"Model": list(predictions.keys()),
+        #"Accuracy": [model_accuracies[m] for m in predictions.keys()],
+        #"Predicted Category": list(predictions.values())
+    #})
+    df_pred = pd.DataFrame({
+    "Model": list(predictions.keys()),
+    "Accuracy": [model_accuracies[m] for m in predictions.keys()],
+    "Predicted Category": list(predictions.values()),
+    "Related Cities": [city_results[m] for m in predictions.keys()]
+})
 
     #for col in df.columns:
         #df_pred[col] = [df[col].iloc[0]] * len(df_pred)
