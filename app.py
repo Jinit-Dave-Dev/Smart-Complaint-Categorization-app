@@ -28,8 +28,9 @@ if complaint_col is None or category_col is None:
 #models_folder = "models"
 #model = pickle.load(open("model.pkl", "rb"))
 #vectorizer = pickle.load(open("vectorizer.pkl", "rb"))
-model_path = "model.pkl"
-vectorizer_path = "vectorizer.pkl"
+model_path = "logistic_regression_model.pkl"
+model_path = "gradient_boosting_model.pkl"
+vectorizer_path = "tfidf_vectorizer.pkl"
 
 if not os.path.exists(model_path):
     st.error(f"Model file not found: {model_path}")
