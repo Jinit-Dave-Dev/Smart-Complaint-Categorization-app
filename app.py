@@ -45,9 +45,9 @@ model_map = {
     "Linear SVC": "linear_svc_model.pkl"
 }
 
-with open(os.path.join(models_folder, "tfidf_vectorizer.pkl"), "rb") as f:
+with open(file_name, "rb") as f:
     vectorizer = pickle.load(f)
-with open(os.path.join(models_folder, "label_encoder.pkl"), "rb") as f:
+with open(file_name, "rb") as f:
     le = pickle.load(f)
 
 model_files = [f for f in os.listdir(models_folder) if f.endswith("_model.pkl")]
