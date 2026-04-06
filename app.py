@@ -4,24 +4,18 @@ import os
 import pandas as pd
 from sklearn.metrics import accuracy_score
 
-project_folder = r"C:\Users\davej\6 months internship work\Dave Jinit Jigeshkumar_GIT_Smart Complaint Categorization for Government Portals"
+#st.info(f"Using dataset: {dataset_path}")
 
-data_folder = os.path.join(project_folder, "data")
-search_folders = [project_folder, data_folder]
+#df = pd.read_csv(dataset_path)
+import pandas as pd
+import os
+st.title("Smart Complaint Categorization System")
+file_path = "smart_complaints_dataset_250.csv"
 
-csv_files = []
-for folder in search_folders:
-    if os.path.exists(folder):
-        csv_files += [os.path.join(folder, f) for f in os.listdir(folder) if f.lower().endswith(".csv")]
+if not os.path.exists(file_path):
+    file_path = "data/smart_complaints_dataset_250.csv"
 
-if not csv_files:
-    st.error(f"No CSV file found in project or data folder: {search_folders}")
-    st.stop()
-
-dataset_path = csv_files[0]
-st.info(f"Using dataset: {dataset_path}")
-
-df = pd.read_csv(dataset_path)
+df = pd.read_csv(file_path)
 df.columns = df.columns.str.strip()
 
 complaint_col = next((c for c in df.columns if 'complaint' in c.lower() or 'text' in c.lower()), None)
