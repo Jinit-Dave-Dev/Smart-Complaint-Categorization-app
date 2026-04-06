@@ -29,6 +29,11 @@ df[complaint_col] = df[complaint_col].astype(str)
 vectorizer = pickle.load(open("tfidf_vectorizer.pkl", "rb"))
 le = pickle.load(open("label_encoder.pkl", "rb"))
 
+# UI Heading (ADD HERE)
+st.markdown("## 📊 Smart Prediction Dashboard")
+st.caption("💡 Example: 'There is no water supply in my area for 3 days'")
+st.markdown("---")
+
 # User input
 user_input = st.text_area("Enter your complaint:")
 
