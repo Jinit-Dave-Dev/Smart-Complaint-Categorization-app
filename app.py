@@ -45,17 +45,6 @@ model_map = {
     "Linear SVC": "linear_svc_model.pkl"
 }
 
-with open(os.path.join(models_folder, "tfidf_vectorizer.pkl"), "rb") as f:
-    vectorizer = pickle.load(f)
-with open(os.path.join(models_folder, "label_encoder.pkl"), "rb") as f:
-    le = pickle.load(f)
-
-model_files = [f for f in os.listdir(models_folder) if f.endswith("_model.pkl")]
-model_map = {f.replace("_model.pkl","").replace("_"," ").title(): f for f in model_files}
-
-if not model_files:
-    st.error("No trained model files found in the models folder!")
-    st.stop()
 
 df[complaint_col] = df[complaint_col].astype(str)
 
