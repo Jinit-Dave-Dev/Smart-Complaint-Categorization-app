@@ -58,7 +58,7 @@ for model_name, file_name in model_map.items():
     y_pred = model.predict(X)
     model_accuracies[model_name] = round(accuracy_score(y_true, y_pred), 3)
 
-st.title("Smart Complaint Categorization (Professional Version)")
+#st.title("Smart Complaint Categorization (Professional Version)")
 
 user_input = st.text_area("Enter your complaint:")
 
