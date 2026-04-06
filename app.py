@@ -26,8 +26,21 @@ if complaint_col is None or category_col is None:
     st.stop()
 
 #models_folder = "models"
-model = pickle.load(open("model.pkl", "rb"))
-vectorizer = pickle.load(open("vectorizer.pkl", "rb"))
+#model = pickle.load(open("model.pkl", "rb"))
+#vectorizer = pickle.load(open("vectorizer.pkl", "rb"))
+model_path = "model.pkl"
+vectorizer_path = "vectorizer.pkl"
+
+if not os.path.exists(model_path):
+    st.error(f"Model file not found: {model_path}")
+    st.stop()
+
+if not os.path.exists(vectorizer_path):
+    st.error(f"Vectorizer file not found: {vectorizer_path}")
+    st.stop()
+
+model = pickle.load(open(model_path, "rb"))
+vectorizer = pickle.load(open(vectorizer_path, "rb"))
 if not os.path.exists(models_folder):
     st.error(f"Models folder not found: {models_folder}")
     st.stop()
