@@ -1,5 +1,4 @@
 import streamlit as st
-import pandas as pd
 import pickle
 import os
 
@@ -12,15 +11,15 @@ st.title("🏛️ Smart Municipal Complaint Categorization System")
 st.markdown("AI-powered system for classifying public complaints")
 
 # ===============================
-# LOAD MODEL & VECTORIZER (ROOT FILES)
+# LOAD MODEL & VECTORIZER (CORRECT FILE NAMES)
 # ===============================
 try:
-    model = pickle.load(open("model.pkl", "rb"))
-    vectorizer = pickle.load(open("vectorizer.pkl", "rb"))
+    model = pickle.load(open("logistic_regression_model.pkl", "rb"))
+    vectorizer = pickle.load(open("tfidf_vectorizer.pkl", "rb"))
     le = pickle.load(open("label_encoder.pkl", "rb"))
 except FileNotFoundError:
-    st.error("❌ Model files not found! Make sure .pkl files are in the same folder as app.py")
-    st.write("Available files:", os.listdir())  # Debug
+    st.error("❌ Model files not found! Check file names in your repository.")
+    st.write("Available files:", os.listdir())
     st.stop()
 
 # ===============================
