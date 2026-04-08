@@ -98,49 +98,49 @@ if user_input.strip():
         y_pred = model.predict(X_new)
         prediction = le.inverse_transform(y_pred)[0]
 
-        # ✅ Confidence score
+        # Confidence score
         try:
             prob = model.predict_proba(X_new).max()
             confidence = round(prob * 100, 2)
         except:
             confidence = "N/A"
 
-        # ✅ Enhanced category
+        # Enhanced category
         enhanced_prediction = map_category(user_input)
 
         # -------------------- DISPLAY CARDS --------------------
         col1, col2, col3 = st.columns(3)
 
         with col1:
-            st.markdown("<div class='card'>📌 <b>Original Category</b><br><br>{}</div>".format(prediction), unsafe_allow_html=True)
+            st.markdown(f"<div class='card'>📌 <b>Original Category</b><br><br>{prediction}</div>", unsafe_allow_html=True)
 
         with col2:
-            st.markdown("<div class='card'>🏛️ <b>Municipal Category</b><br><br>{}</div>".format(enhanced_prediction), unsafe_allow_html=True)
+            st.markdown(f"<div class='card'>🏛️ <b>Municipal Category</b><br><br>{enhanced_prediction}</div>", unsafe_allow_html=True)
 
         with col3:
-            st.markdown("<div class='card'>🎯 <b>Confidence</b><br><br>{}</div>".format(confidence), unsafe_allow_html=True)
+            st.markdown(f"<div class='card'>🎯 <b>Confidence</b><br><br>{confidence}</div>", unsafe_allow_html=True)
 
-        # -------------------- RELATED CITIES --------------------
-        if "city" in df.columns:
-            cities = df[df[category_col] == prediction]["city"].dropna().unique()
-            cities_display = ", ".join(cities[:3]) if len(cities) > 0 else "Not Available"
-        else:
-            cities_display = "Not Available"
+        # -------------------- SIMILAR DATA --------------------
+        similar_df = df[df[category_col] == prediction].copy()
+        similar_df = similar_df.head(5)
 
-        # -------------------- TABLE --------------------
-        result_df = pd.DataFrame({
-            "Model": [model_choice],
-            "Original Category": [prediction],
-            "Municipal Category": [enhanced_prediction],
-            "Confidence": [confidence],
-            "Related Cities": [cities_display]
-        })
+        similar_df["Predicted Category"] = prediction
+        similar_df["Municipal Category"] = enhanced_prediction
+        similar_df["Confidence"] = confidence
 
-        st.markdown("### 📋 Detailed Results")
-        st.dataframe(result_df, use_container_width=True)
+        st.markdown("### 📋 Similar Complaints from Dataset")
+
+        # Column selector
+        selected_columns = st.multiselect(
+            "Select columns to display",
+            options=similar_df.columns,
+            default=similar_df.columns
+        )
+
+        st.dataframe(similar_df[selected_columns], use_container_width=True)
 
         # -------------------- DOWNLOAD --------------------
-        csv = result_df.to_csv(index=False).encode("utf-8")
+        csv = similar_df.to_csv(index=False).encode("utf-8")
         st.download_button("⬇ Download Result", data=csv, file_name="result.csv")
 
 # -------------------- CHART --------------------
