@@ -1,8 +1,7 @@
 import streamlit as st
 import pandas as pd
 import pickle
-
-from sklearn.feature_extraction.text import TfidfVectorizer
+import os
 
 # ===============================
 # PAGE CONFIG
@@ -13,11 +12,19 @@ st.title("🏛️ Smart Municipal Complaint Categorization System")
 st.markdown("AI-powered system for classifying public complaints")
 
 # ===============================
-# LOAD MODEL & VECTORIZER
+# LOAD MODEL & VECTORIZER (FIXED PATH)
 # ===============================
-model = pickle.load(open("model.pkl", "rb"))
-vectorizer = pickle.load(open("vectorizer.pkl", "rb"))
-le = pickle.load(open("label_encoder.pkl", "rb"))
+model_path = os.path.join("models", "model.pkl")
+vectorizer_path = os.path.join("models", "vectorizer.pkl")
+le_path = os.path.join("models", "label_encoder.pkl")
+
+try:
+    model = pickle.load(open(model_path, "rb"))
+    vectorizer = pickle.load(open(vectorizer_path, "rb"))
+    le = pickle.load(open(le_path, "rb"))
+except FileNotFoundError:
+    st.error("❌ Model files not found! Please check your 'models' folder.")
+    st.stop()
 
 # ===============================
 # CATEGORY MAPPING FUNCTION
@@ -45,7 +52,10 @@ def map_category(text):
 # ===============================
 # MODE SELECTION
 # ===============================
-mode = st.radio("Select Category Mode:", ["Original Model", "Enhanced Municipal Categories"])
+mode = st.radio(
+    "Select Category Mode:",
+    ["Original Model", "Enhanced Municipal Categories"]
+)
 
 # ===============================
 # INPUT SECTION
@@ -59,7 +69,7 @@ user_input = st.text_area("Describe your issue here...", height=150)
 if st.button("Predict Category"):
 
     if user_input.strip() == "":
-        st.warning("Please enter a complaint.")
+        st.warning("⚠️ Please enter a complaint.")
     else:
         vectorized_input = vectorizer.transform([user_input])
         prediction = model.predict(vectorized_input)
@@ -67,6 +77,7 @@ if st.button("Predict Category"):
         original_category = le.inverse_transform(prediction)[0]
         enhanced_category = map_category(user_input)
 
+        # Show result
         if mode == "Original Model":
             st.success(f"📌 Predicted Category: {original_category}")
         else:
@@ -81,6 +92,6 @@ st.subheader("📊 About System")
 st.info("""
 This system uses Machine Learning to classify public complaints.
 
-- Original Model: Based on trained dataset categories
-- Enhanced Categories: Maps complaints into real municipal service areas
+- 📌 Original Model: Based on trained dataset categories
+- 🏛️ Enhanced Categories: Maps complaints into real municipal service areas
 """)
