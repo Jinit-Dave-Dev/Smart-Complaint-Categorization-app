@@ -2,9 +2,64 @@ import streamlit as st
 import pickle
 import os
 import pandas as pd
+import sqlite3
 
 # -------------------- PAGE CONFIG --------------------
 st.set_page_config(page_title="Municipal Complaint System", layout="wide")
+
+# -------------------- DATABASE SETUP --------------------
+conn = sqlite3.connect("complaints.db", check_same_thread=False)
+c = conn.cursor()
+
+c.execute("""
+CREATE TABLE IF NOT EXISTS users (
+    username TEXT,
+    password TEXT
+)
+""")
+
+c.execute("""
+CREATE TABLE IF NOT EXISTS complaints (
+    user TEXT,
+    complaint TEXT,
+    prediction TEXT,
+    category TEXT,
+    confidence TEXT
+)
+""")
+
+conn.commit()
+
+# -------------------- LOGIN SYSTEM --------------------
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+
+def login():
+    st.subheader("🔐 Login System")
+
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+
+    if st.button("Login"):
+        c.execute("SELECT * FROM users WHERE username=? AND password=?", (username, password))
+        result = c.fetchone()
+
+        if result:
+            st.session_state.logged_in = True
+            st.session_state.user = username
+            st.success("Login Successful")
+        else:
+            st.error("Invalid Credentials")
+
+    if st.button("Register"):
+        c.execute("INSERT INTO users VALUES (?,?)", (username, password))
+        conn.commit()
+        st.success("User Registered! Now login.")
+
+# STOP APP IF NOT LOGGED IN
+if not st.session_state.logged_in:
+    login()
+    st.stop()
 
 # -------------------- CUSTOM UI --------------------
 st.markdown("""
@@ -98,15 +153,20 @@ if user_input.strip():
         y_pred = model.predict(X_new)
         prediction = le.inverse_transform(y_pred)[0]
 
-        # Confidence score
         try:
             prob = model.predict_proba(X_new).max()
             confidence = round(prob * 100, 2)
         except:
             confidence = "N/A"
 
-        # Enhanced category
         enhanced_prediction = map_category(user_input)
+
+        # -------------------- SAVE TO DATABASE --------------------
+        c.execute(
+            "INSERT INTO complaints VALUES (?,?,?,?,?)",
+            (st.session_state.user, user_input, prediction, enhanced_prediction, str(confidence))
+        )
+        conn.commit()
 
         # -------------------- DISPLAY CARDS --------------------
         col1, col2, col3 = st.columns(3)
@@ -121,8 +181,7 @@ if user_input.strip():
             st.markdown(f"<div class='card'>🎯 <b>Confidence</b><br><br>{confidence}</div>", unsafe_allow_html=True)
 
         # -------------------- SIMILAR DATA --------------------
-        similar_df = df[df[category_col] == prediction].copy()
-        similar_df = similar_df.head(5)
+        similar_df = df[df[category_col] == prediction].copy().head(5)
 
         similar_df["Predicted Category"] = prediction
         similar_df["Municipal Category"] = enhanced_prediction
@@ -130,7 +189,6 @@ if user_input.strip():
 
         st.markdown("### 📋 Similar Complaints from Dataset")
 
-        # Column selector
         selected_columns = st.multiselect(
             "Select columns to display",
             options=similar_df.columns,
@@ -142,6 +200,12 @@ if user_input.strip():
         # -------------------- DOWNLOAD --------------------
         csv = similar_df.to_csv(index=False).encode("utf-8")
         st.download_button("⬇ Download Result", data=csv, file_name="result.csv")
+
+# -------------------- VIEW SAVED DATA --------------------
+st.markdown("### 📁 Saved Complaints (Database)")
+
+saved_df = pd.read_sql_query("SELECT * FROM complaints", conn)
+st.dataframe(saved_df, use_container_width=True)
 
 # -------------------- CHART --------------------
 st.markdown("### 📊 Category Distribution")
