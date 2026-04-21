@@ -234,3 +234,45 @@ if not saved.empty:
 # -------------------- DATASET --------------------
 st.markdown("### 📊 Dataset Category Distribution")
 st.bar_chart(df[category_col].value_counts())
+
+# -------------------- 🤖 AI CHAT ASSISTANT --------------------
+st.markdown("### 🤖 AI Assistant")
+
+# Initialize chat history
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+
+def chatbot_response(user_text):
+    text = user_text.lower()
+
+    # Rule-based + dataset-based intelligence
+    if "water" in text:
+        return "💧 This seems related to Water Supply issues."
+    elif "road" in text or "pothole" in text:
+        return "🛣️ This looks like a Road & Infrastructure complaint."
+    elif "garbage" in text or "waste" in text:
+        return "🗑️ This falls under Sanitation & Waste."
+    elif "electric" in text or "power" in text:
+        return "⚡ This is related to Electricity issues."
+    elif "hello" in text or "hi" in text:
+        return "👋 Hello! I can help you categorize complaints or answer basic queries."
+    else:
+        # Smart fallback using dataset
+        sample = df.sample(1)
+        return f"🤖 I suggest checking similar complaint: '{sample[complaint_col].values[0]}'"
+
+# Chat input
+user_msg = st.text_input("Ask something...")
+
+if user_msg:
+    bot_reply = chatbot_response(user_msg)
+
+    st.session_state.chat_history.append(("You", user_msg))
+    st.session_state.chat_history.append(("Bot", bot_reply))
+
+# Display chat
+for sender, msg in st.session_state.chat_history:
+    if sender == "You":
+        st.markdown(f"**🧑 {msg}**")
+    else:
+        st.markdown(f"**🤖 {msg}**")
