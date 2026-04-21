@@ -29,7 +29,7 @@ if "user" not in st.session_state:
 
 # -------------------- LOGIN --------------------
 def login():
-    st.subheader("🔐 Login System")
+    st.markdown("<h2 style='text-align:center;'>🔐 Login System</h2>", unsafe_allow_html=True)
 
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
@@ -53,28 +53,68 @@ if not st.session_state.logged_in:
     login()
     st.stop()
 
-# -------------------- UI --------------------
+# -------------------- 🌈 SAAS UI STYLE --------------------
 st.markdown("""
 <style>
-body {background-color: #0E1117; color: white;}
-.stTextArea textarea {background-color: #1E1E1E; color: white;}
-.big-title {text-align:center; font-size:30px; color:#4CAF50;}
-.sub-text {text-align:center; color:gray;}
+/* Gradient Background */
+body {
+    background: linear-gradient(135deg, #0f172a, #1e293b);
+    color: white;
+}
+
+/* Title */
+.big-title {
+    text-align:center;
+    font-size:34px;
+    font-weight:700;
+    background: linear-gradient(90deg, #4CAF50, #00E5FF);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+/* Subtitle */
+.sub-text {
+    text-align:center;
+    color:#94a3b8;
+}
+
+/* Glass Card */
 .card {
-    background-color:#1E1E1E;
+    background: rgba(255,255,255,0.05);
     padding:20px;
+    border-radius:15px;
+    backdrop-filter: blur(10px);
+    text-align:center;
+    transition:0.3s;
+}
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0px 10px 25px rgba(0,0,0,0.3);
+}
+
+/* KPI */
+.kpi {
+    background: rgba(255,255,255,0.08);
+    padding:15px;
     border-radius:12px;
     text-align:center;
 }
-.kpi {
-    background-color:#262730;
-    padding:15px;
+
+/* Input */
+.stTextArea textarea {
+    background-color: rgba(255,255,255,0.05);
+    color: white;
     border-radius:10px;
-    text-align:center;
+}
+
+/* Sidebar */
+section[data-testid="stSidebar"] {
+    background: linear-gradient(180deg, #020617, #0f172a);
 }
 </style>
 """, unsafe_allow_html=True)
 
+# -------------------- TITLE --------------------
 st.markdown("<div class='big-title'>🏛️ Smart Municipal Complaint System</div>", unsafe_allow_html=True)
 st.markdown("<div class='sub-text'>AI-powered complaint classification dashboard</div>", unsafe_allow_html=True)
 
@@ -176,7 +216,7 @@ if st.button("Delete Record"):
     st.success("Record Deleted")
     st.rerun()
 
-# -------------------- 🔥 PREMIUM ANALYTICS --------------------
+# -------------------- ANALYTICS --------------------
 st.markdown("### 📊 Analytics Dashboard")
 
 if not saved.empty:
@@ -184,37 +224,13 @@ if not saved.empty:
     top_category = saved["category"].value_counts().idxmax()
     avg_conf = saved["confidence"].astype(float).mean()
 
-    # KPI CARDS
     k1, k2, k3 = st.columns(3)
-    k1.markdown(f"<div class='kpi'>📌 Total Complaints<br><b>{total}</b></div>", unsafe_allow_html=True)
-    k2.markdown(f"<div class='kpi'>🏆 Top Category<br><b>{top_category}</b></div>", unsafe_allow_html=True)
-    k3.markdown(f"<div class='kpi'>🎯 Avg Confidence<br><b>{round(avg_conf,2)}</b></div>", unsafe_allow_html=True)
+    k1.markdown(f"<div class='kpi'>📌 Total<br><b>{total}</b></div>", unsafe_allow_html=True)
+    k2.markdown(f"<div class='kpi'>🏆 Top<br><b>{top_category}</b></div>", unsafe_allow_html=True)
+    k3.markdown(f"<div class='kpi'>🎯 Confidence<br><b>{round(avg_conf,2)}</b></div>", unsafe_allow_html=True)
 
-    st.markdown("---")
+    st.bar_chart(saved["category"].value_counts())
 
-    cat_counts = saved["category"].value_counts()
-    st.bar_chart(cat_counts)
-
-    analytics_df = cat_counts.reset_index()
-    analytics_df.columns = ["Category", "Count"]
-    st.dataframe(analytics_df, use_container_width=True)
-
-else:
-    st.info("No data available yet.")
-
-# -------------------- 🔥 DATASET DISTRIBUTION --------------------
+# -------------------- DATASET --------------------
 st.markdown("### 📊 Dataset Category Distribution")
-
-data_counts = df[category_col].value_counts()
-
-d1, d2, d3 = st.columns(3)
-d1.metric("Total Records", len(df))
-d2.metric("Unique Categories", df[category_col].nunique())
-d3.metric("Top Category", data_counts.idxmax())
-
-st.bar_chart(data_counts)
-
-dist_df = data_counts.reset_index()
-dist_df.columns = ["Category", "Count"]
-
-st.dataframe(dist_df, use_container_width=True)
+st.bar_chart(df[category_col].value_counts())
