@@ -54,7 +54,7 @@ if not st.session_state.logged_in:
     login()
     st.stop()
 
-# -------------------- 🌈 SAAS UI STYLE --------------------
+# -------------------- 🌈 UI STYLE --------------------
 st.markdown("""
 <style>
 body {background: linear-gradient(135deg, #0f172a, #1e293b); color: white;}
@@ -76,11 +76,6 @@ body {background: linear-gradient(135deg, #0f172a, #1e293b); color: white;}
     border-radius:15px;
     backdrop-filter: blur(10px);
     text-align:center;
-    transition:0.3s;
-}
-.card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0px 10px 25px rgba(0,0,0,0.3);
 }
 
 .kpi {
@@ -90,23 +85,22 @@ body {background: linear-gradient(135deg, #0f172a, #1e293b); color: white;}
     text-align:center;
 }
 
-/* 🔥 Chat UI Upgrade */
+/* Chat UI */
 .chat-user {
     background: linear-gradient(90deg,#4CAF50,#00E5FF);
-    padding:10px 15px;
+    padding:10px;
     border-radius:15px;
-    margin:5px 0;
     text-align:right;
     color:black;
-    font-weight:500;
+    margin:5px 0;
 }
 
 .chat-bot {
     background: rgba(255,255,255,0.08);
-    padding:10px 15px;
+    padding:10px;
     border-radius:15px;
-    margin:5px 0;
     text-align:left;
+    margin:5px 0;
 }
 
 .badge-user {
@@ -114,7 +108,6 @@ body {background: linear-gradient(135deg, #0f172a, #1e293b); color: white;}
     color:#00E5FF;
     padding:2px 8px;
     border-radius:8px;
-    margin-right:5px;
 }
 
 .badge-bot {
@@ -122,7 +115,6 @@ body {background: linear-gradient(135deg, #0f172a, #1e293b); color: white;}
     color:black;
     padding:2px 8px;
     border-radius:8px;
-    margin-right:5px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -133,18 +125,14 @@ st.markdown("<div class='sub-text'>AI-powered complaint classification dashboard
 
 # -------------------- SIDEBAR --------------------
 st.sidebar.title("📊 Dashboard")
-st.sidebar.write(f"👤 Logged in as: {st.session_state.user}")
-
-st.sidebar.markdown("### 👨‍💻 Developer")
-st.sidebar.write("Jinit Dave")
+st.sidebar.write(f"👤 {st.session_state.user}")
 
 if st.sidebar.button("Logout"):
     st.session_state.logged_in = False
-    st.session_state.user = ""
     st.rerun()
 
 model_choice = st.sidebar.selectbox(
-    "🔀 Select Model",
+    "Select Model",
     ["Gradient Boosting", "Logistic Regression", "Naive Bayes"]
 )
 
@@ -171,122 +159,58 @@ model_files = {
     "Naive Bayes": "naive_bayes_model.pkl"
 }
 
-# -------------------- CATEGORY MAP --------------------
-def map_category(text):
-    text = str(text).lower()
-    if "water" in text: return "Water Supply"
-    if "road" in text: return "Road & Infrastructure"
-    if "garbage" in text: return "Sanitation & Waste"
-    if "electric" in text: return "Electricity"
-    return "Other"
-
 # -------------------- INPUT --------------------
 st.markdown("---")
-user_input = st.text_area("📝 Enter your complaint:", height=150)
+user_input = st.text_area("Enter complaint")
 
 # -------------------- PREDICTION --------------------
 if user_input.strip():
-    with st.spinner("Analyzing complaint..."):
+    model = pickle.load(open(model_files[model_choice], "rb"))
+    X_new = vectorizer.transform([user_input])
+    y_pred = model.predict(X_new)
+    prediction = le.inverse_transform(y_pred)[0]
 
-        model = pickle.load(open(model_files[model_choice], "rb"))
-        X_new = vectorizer.transform([user_input])
-        y_pred = model.predict(X_new)
-        prediction = le.inverse_transform(y_pred)[0]
+    st.success(prediction)
 
-        try:
-            prob = model.predict_proba(X_new).max()
-            confidence = round(prob * 100, 2)
-        except:
-            confidence = "N/A"
-
-        enhanced = map_category(user_input)
-
-        c.execute("INSERT INTO complaints VALUES (?,?,?,?,?)",
-                  (st.session_state.user, user_input, prediction, enhanced, str(confidence)))
-        conn.commit()
-
-        col1, col2, col3 = st.columns(3)
-        col1.markdown(f"<div class='card'>📌 {prediction}</div>", unsafe_allow_html=True)
-        col2.markdown(f"<div class='card'>🏛️ {enhanced}</div>", unsafe_allow_html=True)
-        col3.markdown(f"<div class='card'>🎯 {confidence}</div>", unsafe_allow_html=True)
-
-        st.markdown("### 📋 Similar Complaints")
-        sim = df[df[category_col] == prediction].head(5)
-        st.dataframe(sim, use_container_width=True)
-
-        st.download_button("⬇ Download", sim.to_csv(index=False), "result.csv")
-
-# -------------------- ADMIN PANEL --------------------
-st.markdown("### 🛠️ Admin Panel")
-saved = pd.read_sql_query("SELECT rowid, * FROM complaints", conn)
-st.dataframe(saved, use_container_width=True)
-
-delete_id = st.number_input("Enter Record ID to Delete", min_value=0, step=1)
-if st.button("Delete Record"):
-    c.execute("DELETE FROM complaints WHERE rowid=?", (delete_id,))
-    conn.commit()
-    st.success("Record Deleted")
-    st.rerun()
-
-# -------------------- ANALYTICS --------------------
-st.markdown("### 📊 Analytics Dashboard")
-
-if not saved.empty:
-    total = len(saved)
-    top_category = saved["category"].value_counts().idxmax()
-    avg_conf = saved["confidence"].astype(float).mean()
-
-    k1, k2, k3 = st.columns(3)
-    k1.markdown(f"<div class='kpi'>📌 Total<br><b>{total}</b></div>", unsafe_allow_html=True)
-    k2.markdown(f"<div class='kpi'>🏆 Top<br><b>{top_category}</b></div>", unsafe_allow_html=True)
-    k3.markdown(f"<div class='kpi'>🎯 Confidence<br><b>{round(avg_conf,2)}</b></div>", unsafe_allow_html=True)
-
-    st.bar_chart(saved["category"].value_counts())
-
-# -------------------- DATASET --------------------
-st.markdown("### 📊 Dataset Category Distribution")
-st.bar_chart(df[category_col].value_counts())
-
-# -------------------- 🤖 ADVANCED CHATBOT --------------------
+# -------------------- 🤖 CHATBOT --------------------
 st.markdown("### 🤖 AI Assistant")
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
 def chatbot_response(text):
-    t = text.lower()
-
-    if "water" in t:
-        return "💧 Water Supply issue detected. You can submit complaint in system."
-    elif "road" in t:
-        return "🛣️ Road issue detected. Likely infrastructure related."
-    elif "garbage" in t:
-        return "🗑️ Waste management issue."
-    elif "electric" in t:
-        return "⚡ Electricity issue detected."
-    elif "hi" in t or "hello" in t:
-        return "👋 Hello! Ask me anything about complaints."
-    else:
-        sample = df.sample(1)
-        return f"🤖 Try checking this similar complaint:\n➡️ {sample[complaint_col].values[0]}"
+    if "water" in text.lower():
+        return "💧 Water issue detected"
+    return "🤖 Try giving more details"
 
 def typing_effect(text):
     placeholder = st.empty()
-    output = ""
+    out = ""
     for char in text:
-        output += char
-        placeholder.markdown(f"<div class='chat-bot'><span class='badge-bot'>AI</span>{output}</div>", unsafe_allow_html=True)
+        out += char
+        placeholder.markdown(f"<div class='chat-bot'><span class='badge-bot'>AI</span> {out}</div>", unsafe_allow_html=True)
         time.sleep(0.01)
 
-msg = st.text_input("💬 Ask your assistant...")
+# 🔥 NEW: THINKING ANIMATION
+def thinking_animation():
+    placeholder = st.empty()
+    for i in range(3):
+        placeholder.markdown(f"<div class='chat-bot'><span class='badge-bot'>AI</span> Thinking{'.'*i}</div>", unsafe_allow_html=True)
+        time.sleep(0.3)
+    placeholder.empty()
+
+msg = st.text_input("Ask something...")
 
 if msg:
     st.session_state.chat_history.append(("user", msg))
+
+    thinking_animation()   # ✅ added here
+
     reply = chatbot_response(msg)
     st.session_state.chat_history.append(("bot", reply))
 
 for sender, message in st.session_state.chat_history:
     if sender == "user":
-        st.markdown(f"<div class='chat-user'><span class='badge-user'>YOU</span>{message}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='chat-user'><span class='badge-user'>YOU</span> {message}</div>", unsafe_allow_html=True)
     else:
         typing_effect(message)
