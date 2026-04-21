@@ -3,6 +3,7 @@ import pickle
 import os
 import pandas as pd
 import sqlite3
+import plotly.express as px
 
 # -------------------- PAGE CONFIG --------------------
 st.set_page_config(page_title="Municipal Complaint System", layout="wide")
@@ -44,13 +45,11 @@ def login():
         else:
             st.error("Invalid Credentials")
 
-    # REGISTER BELOW LOGIN ✅
     if st.button("Register"):
         c.execute("INSERT INTO users VALUES (?,?)", (username, password))
         conn.commit()
         st.success("Registered! Now login.")
 
-# STOP IF NOT LOGGED IN
 if not st.session_state.logged_in:
     login()
     st.stop()
@@ -66,7 +65,6 @@ body {background-color: #0E1117; color: white;}
 </style>
 """, unsafe_allow_html=True)
 
-# -------------------- TITLE --------------------
 st.markdown("<div class='big-title'>🏛️ Smart Municipal Complaint System</div>", unsafe_allow_html=True)
 st.markdown("<div class='sub-text'>AI-powered complaint classification dashboard</div>", unsafe_allow_html=True)
 
@@ -74,7 +72,6 @@ st.markdown("<div class='sub-text'>AI-powered complaint classification dashboard
 st.sidebar.title("📊 Dashboard")
 st.sidebar.write(f"👤 Logged in as: {st.session_state.user}")
 
-# KEEP DEVELOPER NAME ✅
 st.sidebar.markdown("### 👨‍💻 Developer")
 st.sidebar.write("Jinit Dave")
 
@@ -142,49 +139,63 @@ if user_input.strip():
 
         enhanced = map_category(user_input)
 
-        # SAVE
         c.execute("INSERT INTO complaints VALUES (?,?,?,?,?)",
                   (st.session_state.user, user_input, prediction, enhanced, str(confidence)))
         conn.commit()
 
-        # CARDS
         col1, col2, col3 = st.columns(3)
         col1.markdown(f"<div class='card'>📌 {prediction}</div>", unsafe_allow_html=True)
         col2.markdown(f"<div class='card'>🏛️ {enhanced}</div>", unsafe_allow_html=True)
         col3.markdown(f"<div class='card'>🎯 {confidence}</div>", unsafe_allow_html=True)
 
-        # TABLE
         st.markdown("### 📋 Similar Complaints")
         sim = df[df[category_col] == prediction].head(5)
         st.dataframe(sim, use_container_width=True)
 
-        # DOWNLOAD
         st.download_button("⬇ Download", sim.to_csv(index=False), "result.csv")
 
 # -------------------- ADMIN PANEL --------------------
 st.markdown("### 🛠️ Admin Panel")
-
 saved = pd.read_sql_query("SELECT rowid, * FROM complaints", conn)
 st.dataframe(saved, use_container_width=True)
 
-# DELETE RECORD
 delete_id = st.number_input("Enter Record ID to Delete", min_value=0, step=1)
-
 if st.button("Delete Record"):
     c.execute("DELETE FROM complaints WHERE rowid=?", (delete_id,))
     conn.commit()
     st.success("Record Deleted")
     st.rerun()
 
-# -------------------- ANALYTICS --------------------
+# -------------------- 🔥 IMPROVED ANALYTICS --------------------
 st.markdown("### 📊 Analytics Dashboard")
 
 if not saved.empty:
-    st.bar_chart(saved["category"].value_counts())
-    st.bar_chart(saved["prediction"].value_counts())
+    col1, col2 = st.columns(2)
+
+    with col1:
+        fig1 = px.bar(saved["category"].value_counts().reset_index(),
+                      x="count", y="index", orientation='h',
+                      title="Municipal Category Distribution")
+        st.plotly_chart(fig1, use_container_width=True)
+
+    with col2:
+        fig2 = px.pie(saved, names="category", title="Category Share")
+        st.plotly_chart(fig2, use_container_width=True)
+
 else:
     st.info("No data available yet.")
 
-# -------------------- ORIGINAL CHART --------------------
-st.markdown("### 📊 Category Distribution")
-st.bar_chart(df[category_col].value_counts())
+# -------------------- 🔥 IMPROVED CATEGORY DISTRIBUTION --------------------
+st.markdown("### 📊 Dataset Category Distribution")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    fig3 = px.bar(df[category_col].value_counts().reset_index(),
+                  x="count", y="index", orientation='h',
+                  title="Dataset Distribution")
+    st.plotly_chart(fig3, use_container_width=True)
+
+with col2:
+    fig4 = px.pie(df, names=category_col, title="Category Share")
+    st.plotly_chart(fig4, use_container_width=True)
