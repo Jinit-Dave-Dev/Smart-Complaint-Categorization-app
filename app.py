@@ -3,6 +3,7 @@ import pickle
 import os
 import pandas as pd
 import sqlite3
+import time
 
 # -------------------- PAGE CONFIG --------------------
 st.set_page_config(page_title="Municipal Complaint System", layout="wide")
@@ -53,7 +54,7 @@ if not st.session_state.logged_in:
     login()
     st.stop()
 
-# -------------------- SAAS UI --------------------
+# -------------------- UI STYLE --------------------
 st.markdown("""
 <style>
 body {background: linear-gradient(135deg,#0f172a,#1e293b); color:white;}
@@ -81,10 +82,8 @@ body {background: linear-gradient(135deg,#0f172a,#1e293b); color:white;}
     padding:15px;border-radius:12px;text-align:center;
 }
 
-/* Chat bubbles */
 .user-bubble {
     background:#4CAF50;
-    color:white;
     padding:10px 15px;
     border-radius:15px;
     margin:5px 0;
@@ -93,21 +92,10 @@ body {background: linear-gradient(135deg,#0f172a,#1e293b); color:white;}
 
 .bot-bubble {
     background:#1E293B;
-    color:white;
     padding:10px 15px;
     border-radius:15px;
     margin:5px 0;
     text-align:left;
-}
-
-/* Badge */
-.badge {
-    background:#00E5FF;
-    color:black;
-    padding:2px 8px;
-    border-radius:8px;
-    font-size:12px;
-    margin-right:5px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -171,45 +159,75 @@ user_input = st.text_area("📝 Enter your complaint:", height=150)
 
 # -------------------- PREDICTION --------------------
 if user_input.strip():
-    model = pickle.load(open(model_files[model_choice], "rb"))
-    X_new = vectorizer.transform([user_input])
-    y_pred = model.predict(X_new)
-    prediction = le.inverse_transform(y_pred)[0]
+    with st.spinner("Analyzing complaint..."):
 
-    enhanced = map_category(user_input)
+        model = pickle.load(open(model_files[model_choice], "rb"))
+        X_new = vectorizer.transform([user_input])
+        y_pred = model.predict(X_new)
+        prediction = le.inverse_transform(y_pred)[0]
 
-    st.markdown(f"<div class='card'>📌 {prediction}</div>", unsafe_allow_html=True)
+        try:
+            prob = model.predict_proba(X_new).max()
+            confidence = round(prob * 100, 2)
+        except:
+            confidence = "N/A"
 
-# -------------------- 🤖 CHATBOT --------------------
+        enhanced = map_category(user_input)
+
+        c.execute("INSERT INTO complaints VALUES (?,?,?,?,?)",
+                  (st.session_state.user, user_input, prediction, enhanced, str(confidence)))
+        conn.commit()
+
+        col1, col2, col3 = st.columns(3)
+        col1.markdown(f"<div class='card'>📌 {prediction}</div>", unsafe_allow_html=True)
+        col2.markdown(f"<div class='card'>🏛️ {enhanced}</div>", unsafe_allow_html=True)
+        col3.markdown(f"<div class='card'>🎯 {confidence}</div>", unsafe_allow_html=True)
+
+        st.markdown("### 📋 Similar Complaints")
+        sim = df[df[category_col] == prediction].head(5)
+        st.dataframe(sim, use_container_width=True)
+
+# -------------------- ADMIN --------------------
+st.markdown("### 🛠️ Admin Panel")
+saved = pd.read_sql_query("SELECT rowid, * FROM complaints", conn)
+st.dataframe(saved, use_container_width=True)
+
+# -------------------- ANALYTICS --------------------
+st.markdown("### 📊 Analytics Dashboard")
+if not saved.empty:
+    st.bar_chart(saved["category"].value_counts())
+
+# -------------------- CHATBOT --------------------
 st.markdown("### 🤖 AI Assistant")
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
-def chatbot_response(user_text):
-    text = user_text.lower()
+def chatbot_response(text):
+    t = text.lower()
+    if "water" in t: return "💧 Water Supply issue detected"
+    if "road" in t: return "🛣️ Road issue detected"
+    if "electric" in t: return "⚡ Electricity issue detected"
+    return "🤖 Please provide more details"
 
-    if "water" in text:
-        return "💧 Water Supply issue detected"
-    elif "road" in text:
-        return "🛣️ Road issue detected"
-    elif "garbage" in text:
-        return "🗑️ Waste issue detected"
-    elif "electric" in text:
-        return "⚡ Electricity issue detected"
-    else:
-        return "🤖 Please provide more details"
+def typing_effect(text):
+    placeholder = st.empty()
+    full = ""
+    for char in text:
+        full += char
+        placeholder.markdown(f"<div class='bot-bubble'>{full}</div>", unsafe_allow_html=True)
+        time.sleep(0.01)
 
 msg = st.text_input("Ask something...")
 
 if msg:
-    reply = chatbot_response(msg)
     st.session_state.chat_history.append(("user", msg))
+    reply = chatbot_response(msg)
     st.session_state.chat_history.append(("bot", reply))
 
-# Display styled chat
+# display chat
 for sender, message in st.session_state.chat_history:
     if sender == "user":
-        st.markdown(f"<div class='user-bubble'><span class='badge'>YOU</span>{message}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='user-bubble'>{message}</div>", unsafe_allow_html=True)
     else:
-        st.markdown(f"<div class='bot-bubble'><span class='badge'>AI</span>{message}</div>", unsafe_allow_html=True)
+        typing_effect(message)
