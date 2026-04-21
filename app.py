@@ -3,7 +3,6 @@ import pickle
 import os
 import pandas as pd
 import sqlite3
-import plotly.express as px
 
 # -------------------- PAGE CONFIG --------------------
 st.set_page_config(page_title="Municipal Complaint System", layout="wide")
@@ -170,32 +169,32 @@ if st.button("Delete Record"):
 st.markdown("### 📊 Analytics Dashboard")
 
 if not saved.empty:
-    col1, col2 = st.columns(2)
+    cat_counts = saved["category"].value_counts()
+    cat_percent = round((cat_counts / cat_counts.sum()) * 100, 2)
 
-    with col1:
-        fig1 = px.bar(saved["category"].value_counts().reset_index(),
-                      x="count", y="index", orientation='h',
-                      title="Municipal Category Distribution")
-        st.plotly_chart(fig1, use_container_width=True)
+    analytics_df = pd.DataFrame({
+        "Category": cat_counts.index,
+        "Count": cat_counts.values,
+        "Percentage (%)": cat_percent.values
+    })
 
-    with col2:
-        fig2 = px.pie(saved, names="category", title="Category Share")
-        st.plotly_chart(fig2, use_container_width=True)
+    st.dataframe(analytics_df, use_container_width=True)
+    st.bar_chart(cat_counts)
 
 else:
     st.info("No data available yet.")
 
-# -------------------- 🔥 IMPROVED CATEGORY DISTRIBUTION --------------------
+# -------------------- 🔥 DATASET DISTRIBUTION --------------------
 st.markdown("### 📊 Dataset Category Distribution")
 
-col1, col2 = st.columns(2)
+data_counts = df[category_col].value_counts()
+data_percent = round((data_counts / data_counts.sum()) * 100, 2)
 
-with col1:
-    fig3 = px.bar(df[category_col].value_counts().reset_index(),
-                  x="count", y="index", orientation='h',
-                  title="Dataset Distribution")
-    st.plotly_chart(fig3, use_container_width=True)
+dist_df = pd.DataFrame({
+    "Category": data_counts.index,
+    "Count": data_counts.values,
+    "Percentage (%)": data_percent.values
+})
 
-with col2:
-    fig4 = px.pie(df, names=category_col, title="Category Share")
-    st.plotly_chart(fig4, use_container_width=True)
+st.dataframe(dist_df, use_container_width=True)
+st.bar_chart(data_counts)
