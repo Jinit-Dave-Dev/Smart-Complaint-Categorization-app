@@ -24,37 +24,31 @@ conn.commit()
 # -------------------- SESSION --------------------
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
-
 if "user" not in st.session_state:
     st.session_state.user = ""
 
 # -------------------- LOGIN --------------------
 def login():
-    st.subheader("🔐 Login / Register")
+    st.subheader("🔐 Login System")
 
     username = st.text_input("Username")
     password = st.text_input("Password", type="password")
 
-    col1, col2 = st.columns(2)
+    if st.button("Login"):
+        c.execute("SELECT * FROM users WHERE username=? AND password=?", (username, password))
+        if c.fetchone():
+            st.session_state.logged_in = True
+            st.session_state.user = username
+            st.success("Login Successful")
+            st.rerun()
+        else:
+            st.error("Invalid Credentials")
 
-    with col1:
-        if st.button("Login"):
-            c.execute("SELECT * FROM users WHERE username=? AND password=?", (username, password))
-            result = c.fetchone()
-
-            if result:
-                st.session_state.logged_in = True
-                st.session_state.user = username
-                st.success("Login Successful")
-                st.rerun()   # 🔥 FIX
-            else:
-                st.error("Invalid Credentials")
-
-    with col2:
-        if st.button("Register"):
-            c.execute("INSERT INTO users VALUES (?,?)", (username, password))
-            conn.commit()
-            st.success("Registered! Now login.")
+    # REGISTER BELOW LOGIN ✅
+    if st.button("Register"):
+        c.execute("INSERT INTO users VALUES (?,?)", (username, password))
+        conn.commit()
+        st.success("Registered! Now login.")
 
 # STOP IF NOT LOGGED IN
 if not st.session_state.logged_in:
@@ -79,6 +73,10 @@ st.markdown("<div class='sub-text'>AI-powered complaint classification dashboard
 # -------------------- SIDEBAR --------------------
 st.sidebar.title("📊 Dashboard")
 st.sidebar.write(f"👤 Logged in as: {st.session_state.user}")
+
+# KEEP DEVELOPER NAME ✅
+st.sidebar.markdown("### 👨‍💻 Developer")
+st.sidebar.write("Jinit Dave")
 
 if st.sidebar.button("Logout"):
     st.session_state.logged_in = False
@@ -163,11 +161,30 @@ if user_input.strip():
         # DOWNLOAD
         st.download_button("⬇ Download", sim.to_csv(index=False), "result.csv")
 
-# -------------------- DATABASE VIEW --------------------
-st.markdown("### 📁 Saved Complaints")
-saved = pd.read_sql_query("SELECT * FROM complaints", conn)
+# -------------------- ADMIN PANEL --------------------
+st.markdown("### 🛠️ Admin Panel")
+
+saved = pd.read_sql_query("SELECT rowid, * FROM complaints", conn)
 st.dataframe(saved, use_container_width=True)
 
-# -------------------- CHART --------------------
+# DELETE RECORD
+delete_id = st.number_input("Enter Record ID to Delete", min_value=0, step=1)
+
+if st.button("Delete Record"):
+    c.execute("DELETE FROM complaints WHERE rowid=?", (delete_id,))
+    conn.commit()
+    st.success("Record Deleted")
+    st.rerun()
+
+# -------------------- ANALYTICS --------------------
+st.markdown("### 📊 Analytics Dashboard")
+
+if not saved.empty:
+    st.bar_chart(saved["category"].value_counts())
+    st.bar_chart(saved["prediction"].value_counts())
+else:
+    st.info("No data available yet.")
+
+# -------------------- ORIGINAL CHART --------------------
 st.markdown("### 📊 Category Distribution")
 st.bar_chart(df[category_col].value_counts())
