@@ -177,7 +177,7 @@ model_files = {
     "Naive Bayes": "naive_bayes_model.pkl"
 }
 
-# ✅ NEW: Confidence badge helper
+# -------------------- CONFIDENCE LABEL --------------------
 def get_confidence_label(conf):
     try:
         conf = float(conf)
@@ -225,16 +225,27 @@ if user_input.strip():
                   (st.session_state.user, user_input, prediction, enhanced, str(confidence)))
         conn.commit()
 
-        # ✅ UPDATED UI (badge added)
         col1, col2, col3 = st.columns(3)
         col1.markdown(f"<div class='card'>📌 {prediction}</div>", unsafe_allow_html=True)
         col2.markdown(f"<div class='card'>🏛️ {enhanced}</div>", unsafe_allow_html=True)
         col3.markdown(f"<div class='card'>🎯 {get_confidence_label(confidence)}</div>", unsafe_allow_html=True)
 
+        # -------------------- ✅ NEW: WHY PREDICTION --------------------
+        st.markdown("### 🔍 Why this prediction?")
+        feature_names = vectorizer.get_feature_names_out()
+        tfidf_array = X_new.toarray()[0]
+        top_indices = tfidf_array.argsort()[-5:][::-1]
+        top_words = [feature_names[i] for i in top_indices if tfidf_array[i] > 0]
+
+        if top_words:
+            st.info("Top keywords influencing prediction: " + ", ".join(top_words))
+        else:
+            st.info("No strong keywords detected.")
+
+        # -------------------- SIMILAR --------------------
         st.markdown("### 📋 Similar Complaints")
         sim = df[df[category_col] == prediction].head(5)
 
-        # ✅ NEW: fallback
         if sim.empty:
             st.warning("⚠️ No similar complaints found. Try another input.")
         else:
@@ -269,7 +280,7 @@ if not saved.empty:
 
     st.bar_chart(saved["category"].value_counts())
 
-# ✅ NEW: Top 5 categories
+# -------------------- TOP 5 --------------------
 st.markdown("### 🏆 Top 5 Categories")
 top5 = df[category_col].value_counts().head(5)
 for i, (cat, val) in enumerate(top5.items(), start=1):
@@ -279,7 +290,7 @@ for i, (cat, val) in enumerate(top5.items(), start=1):
 st.markdown("### 📊 Dataset Category Distribution")
 st.bar_chart(df[category_col].value_counts())
 
-# -------------------- 🤖 CHATBOT (UNCHANGED) --------------------
+# -------------------- 🤖 CHATBOT --------------------
 st.markdown("### 🤖 AI Assistant")
 
 if "chat_history" not in st.session_state:
