@@ -53,63 +53,61 @@ if not st.session_state.logged_in:
     login()
     st.stop()
 
-# -------------------- 🌈 SAAS UI STYLE --------------------
+# -------------------- SAAS UI --------------------
 st.markdown("""
 <style>
-/* Gradient Background */
-body {
-    background: linear-gradient(135deg, #0f172a, #1e293b);
-    color: white;
-}
+body {background: linear-gradient(135deg,#0f172a,#1e293b); color:white;}
 
-/* Title */
 .big-title {
     text-align:center;
     font-size:34px;
     font-weight:700;
-    background: linear-gradient(90deg, #4CAF50, #00E5FF);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
+    background: linear-gradient(90deg,#4CAF50,#00E5FF);
+    -webkit-background-clip:text;
+    -webkit-text-fill-color:transparent;
 }
 
-/* Subtitle */
-.sub-text {
-    text-align:center;
-    color:#94a3b8;
-}
+.sub-text {text-align:center;color:#94a3b8;}
 
-/* Glass Card */
 .card {
-    background: rgba(255,255,255,0.05);
-    padding:20px;
-    border-radius:15px;
-    backdrop-filter: blur(10px);
+    background:rgba(255,255,255,0.05);
+    padding:20px;border-radius:15px;
+    backdrop-filter:blur(10px);
     text-align:center;
-    transition:0.3s;
-}
-.card:hover {
-    transform: translateY(-5px);
-    box-shadow: 0px 10px 25px rgba(0,0,0,0.3);
 }
 
-/* KPI */
 .kpi {
-    background: rgba(255,255,255,0.08);
-    padding:15px;
-    border-radius:12px;
-    text-align:center;
+    background:rgba(255,255,255,0.08);
+    padding:15px;border-radius:12px;text-align:center;
 }
 
-/* Input */
-.stTextArea textarea {
-    background-color: rgba(255,255,255,0.05);
-    color: white;
-    border-radius:10px;
+/* Chat bubbles */
+.user-bubble {
+    background:#4CAF50;
+    color:white;
+    padding:10px 15px;
+    border-radius:15px;
+    margin:5px 0;
+    text-align:right;
 }
 
-/* Sidebar */
-section[data-testid="stSidebar"] {
-    background: linear-gradient(180deg, #020617, #0f172a);
+.bot-bubble {
+    background:#1E293B;
+    color:white;
+    padding:10px 15px;
+    border-radius:15px;
+    margin:5px 0;
+    text-align:left;
+}
+
+/* Badge */
+.badge {
+    background:#00E5FF;
+    color:black;
+    padding:2px 8px;
+    border-radius:8px;
+    font-size:12px;
+    margin-right:5px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -173,107 +171,45 @@ user_input = st.text_area("📝 Enter your complaint:", height=150)
 
 # -------------------- PREDICTION --------------------
 if user_input.strip():
-    with st.spinner("Analyzing complaint..."):
+    model = pickle.load(open(model_files[model_choice], "rb"))
+    X_new = vectorizer.transform([user_input])
+    y_pred = model.predict(X_new)
+    prediction = le.inverse_transform(y_pred)[0]
 
-        model = pickle.load(open(model_files[model_choice], "rb"))
+    enhanced = map_category(user_input)
 
-        X_new = vectorizer.transform([user_input])
-        y_pred = model.predict(X_new)
-        prediction = le.inverse_transform(y_pred)[0]
+    st.markdown(f"<div class='card'>📌 {prediction}</div>", unsafe_allow_html=True)
 
-        try:
-            prob = model.predict_proba(X_new).max()
-            confidence = round(prob * 100, 2)
-        except:
-            confidence = "N/A"
-
-        enhanced = map_category(user_input)
-
-        c.execute("INSERT INTO complaints VALUES (?,?,?,?,?)",
-                  (st.session_state.user, user_input, prediction, enhanced, str(confidence)))
-        conn.commit()
-
-        col1, col2, col3 = st.columns(3)
-        col1.markdown(f"<div class='card'>📌 {prediction}</div>", unsafe_allow_html=True)
-        col2.markdown(f"<div class='card'>🏛️ {enhanced}</div>", unsafe_allow_html=True)
-        col3.markdown(f"<div class='card'>🎯 {confidence}</div>", unsafe_allow_html=True)
-
-        st.markdown("### 📋 Similar Complaints")
-        sim = df[df[category_col] == prediction].head(5)
-        st.dataframe(sim, use_container_width=True)
-
-        st.download_button("⬇ Download", sim.to_csv(index=False), "result.csv")
-
-# -------------------- ADMIN PANEL --------------------
-st.markdown("### 🛠️ Admin Panel")
-saved = pd.read_sql_query("SELECT rowid, * FROM complaints", conn)
-st.dataframe(saved, use_container_width=True)
-
-delete_id = st.number_input("Enter Record ID to Delete", min_value=0, step=1)
-if st.button("Delete Record"):
-    c.execute("DELETE FROM complaints WHERE rowid=?", (delete_id,))
-    conn.commit()
-    st.success("Record Deleted")
-    st.rerun()
-
-# -------------------- ANALYTICS --------------------
-st.markdown("### 📊 Analytics Dashboard")
-
-if not saved.empty:
-    total = len(saved)
-    top_category = saved["category"].value_counts().idxmax()
-    avg_conf = saved["confidence"].astype(float).mean()
-
-    k1, k2, k3 = st.columns(3)
-    k1.markdown(f"<div class='kpi'>📌 Total<br><b>{total}</b></div>", unsafe_allow_html=True)
-    k2.markdown(f"<div class='kpi'>🏆 Top<br><b>{top_category}</b></div>", unsafe_allow_html=True)
-    k3.markdown(f"<div class='kpi'>🎯 Confidence<br><b>{round(avg_conf,2)}</b></div>", unsafe_allow_html=True)
-
-    st.bar_chart(saved["category"].value_counts())
-
-# -------------------- DATASET --------------------
-st.markdown("### 📊 Dataset Category Distribution")
-st.bar_chart(df[category_col].value_counts())
-
-# -------------------- 🤖 AI CHAT ASSISTANT --------------------
+# -------------------- 🤖 CHATBOT --------------------
 st.markdown("### 🤖 AI Assistant")
 
-# Initialize chat history
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
 def chatbot_response(user_text):
     text = user_text.lower()
 
-    # Rule-based + dataset-based intelligence
     if "water" in text:
-        return "💧 This seems related to Water Supply issues."
-    elif "road" in text or "pothole" in text:
-        return "🛣️ This looks like a Road & Infrastructure complaint."
-    elif "garbage" in text or "waste" in text:
-        return "🗑️ This falls under Sanitation & Waste."
-    elif "electric" in text or "power" in text:
-        return "⚡ This is related to Electricity issues."
-    elif "hello" in text or "hi" in text:
-        return "👋 Hello! I can help you categorize complaints or answer basic queries."
+        return "💧 Water Supply issue detected"
+    elif "road" in text:
+        return "🛣️ Road issue detected"
+    elif "garbage" in text:
+        return "🗑️ Waste issue detected"
+    elif "electric" in text:
+        return "⚡ Electricity issue detected"
     else:
-        # Smart fallback using dataset
-        sample = df.sample(1)
-        return f"🤖 I suggest checking similar complaint: '{sample[complaint_col].values[0]}'"
+        return "🤖 Please provide more details"
 
-# Chat input
-user_msg = st.text_input("Ask something...")
+msg = st.text_input("Ask something...")
 
-if user_msg:
-    bot_reply = chatbot_response(user_msg)
+if msg:
+    reply = chatbot_response(msg)
+    st.session_state.chat_history.append(("user", msg))
+    st.session_state.chat_history.append(("bot", reply))
 
-    st.session_state.chat_history.append(("You", user_msg))
-    st.session_state.chat_history.append(("Bot", bot_reply))
-
-# Display chat
-for sender, msg in st.session_state.chat_history:
-    if sender == "You":
-        st.markdown(f"**🧑 {msg}**")
+# Display styled chat
+for sender, message in st.session_state.chat_history:
+    if sender == "user":
+        st.markdown(f"<div class='user-bubble'><span class='badge'>YOU</span>{message}</div>", unsafe_allow_html=True)
     else:
-        st.markdown(f"**🤖 {msg}**")
-        
+        st.markdown(f"<div class='bot-bubble'><span class='badge'>AI</span>{message}</div>", unsafe_allow_html=True)
