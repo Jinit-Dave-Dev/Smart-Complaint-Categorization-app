@@ -177,6 +177,19 @@ model_files = {
     "Naive Bayes": "naive_bayes_model.pkl"
 }
 
+# ✅ NEW: Confidence badge helper
+def get_confidence_label(conf):
+    try:
+        conf = float(conf)
+        if conf >= 75:
+            return f"{conf}% 🟢 High"
+        elif conf >= 50:
+            return f"{conf}% 🟡 Medium"
+        else:
+            return f"{conf}% 🔴 Low"
+    except:
+        return "N/A"
+
 # -------------------- CATEGORY MAP --------------------
 def map_category(text):
     text = str(text).lower()
@@ -212,14 +225,20 @@ if user_input.strip():
                   (st.session_state.user, user_input, prediction, enhanced, str(confidence)))
         conn.commit()
 
+        # ✅ UPDATED UI (badge added)
         col1, col2, col3 = st.columns(3)
         col1.markdown(f"<div class='card'>📌 {prediction}</div>", unsafe_allow_html=True)
         col2.markdown(f"<div class='card'>🏛️ {enhanced}</div>", unsafe_allow_html=True)
-        col3.markdown(f"<div class='card'>🎯 {confidence}</div>", unsafe_allow_html=True)
+        col3.markdown(f"<div class='card'>🎯 {get_confidence_label(confidence)}</div>", unsafe_allow_html=True)
 
         st.markdown("### 📋 Similar Complaints")
         sim = df[df[category_col] == prediction].head(5)
-        st.dataframe(sim, use_container_width=True)
+
+        # ✅ NEW: fallback
+        if sim.empty:
+            st.warning("⚠️ No similar complaints found. Try another input.")
+        else:
+            st.dataframe(sim, use_container_width=True)
 
         st.download_button("⬇ Download", sim.to_csv(index=False), "result.csv")
 
@@ -250,11 +269,17 @@ if not saved.empty:
 
     st.bar_chart(saved["category"].value_counts())
 
+# ✅ NEW: Top 5 categories
+st.markdown("### 🏆 Top 5 Categories")
+top5 = df[category_col].value_counts().head(5)
+for i, (cat, val) in enumerate(top5.items(), start=1):
+    st.write(f"{i}. {cat} ({val})")
+
 # -------------------- DATASET --------------------
 st.markdown("### 📊 Dataset Category Distribution")
 st.bar_chart(df[category_col].value_counts())
 
-# -------------------- 🤖 CHATBOT (UPGRADED ONLY) --------------------
+# -------------------- 🤖 CHATBOT (UNCHANGED) --------------------
 st.markdown("### 🤖 AI Assistant")
 
 if "chat_history" not in st.session_state:
