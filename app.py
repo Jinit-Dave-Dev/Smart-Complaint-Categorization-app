@@ -60,7 +60,18 @@ body {background-color: #0E1117; color: white;}
 .stTextArea textarea {background-color: #1E1E1E; color: white;}
 .big-title {text-align:center; font-size:30px; color:#4CAF50;}
 .sub-text {text-align:center; color:gray;}
-.card {background-color:#1E1E1E;padding:20px;border-radius:10px;}
+.card {
+    background-color:#1E1E1E;
+    padding:20px;
+    border-radius:12px;
+    text-align:center;
+}
+.kpi {
+    background-color:#262730;
+    padding:15px;
+    border-radius:10px;
+    text-align:center;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -165,21 +176,28 @@ if st.button("Delete Record"):
     st.success("Record Deleted")
     st.rerun()
 
-# -------------------- 🔥 IMPROVED ANALYTICS --------------------
+# -------------------- 🔥 PREMIUM ANALYTICS --------------------
 st.markdown("### 📊 Analytics Dashboard")
 
 if not saved.empty:
+    total = len(saved)
+    top_category = saved["category"].value_counts().idxmax()
+    avg_conf = saved["confidence"].astype(float).mean()
+
+    # KPI CARDS
+    k1, k2, k3 = st.columns(3)
+    k1.markdown(f"<div class='kpi'>📌 Total Complaints<br><b>{total}</b></div>", unsafe_allow_html=True)
+    k2.markdown(f"<div class='kpi'>🏆 Top Category<br><b>{top_category}</b></div>", unsafe_allow_html=True)
+    k3.markdown(f"<div class='kpi'>🎯 Avg Confidence<br><b>{round(avg_conf,2)}</b></div>", unsafe_allow_html=True)
+
+    st.markdown("---")
+
     cat_counts = saved["category"].value_counts()
-    cat_percent = round((cat_counts / cat_counts.sum()) * 100, 2)
-
-    analytics_df = pd.DataFrame({
-        "Category": cat_counts.index,
-        "Count": cat_counts.values,
-        "Percentage (%)": cat_percent.values
-    })
-
-    st.dataframe(analytics_df, use_container_width=True)
     st.bar_chart(cat_counts)
+
+    analytics_df = cat_counts.reset_index()
+    analytics_df.columns = ["Category", "Count"]
+    st.dataframe(analytics_df, use_container_width=True)
 
 else:
     st.info("No data available yet.")
@@ -188,13 +206,15 @@ else:
 st.markdown("### 📊 Dataset Category Distribution")
 
 data_counts = df[category_col].value_counts()
-data_percent = round((data_counts / data_counts.sum()) * 100, 2)
 
-dist_df = pd.DataFrame({
-    "Category": data_counts.index,
-    "Count": data_counts.values,
-    "Percentage (%)": data_percent.values
-})
+d1, d2, d3 = st.columns(3)
+d1.metric("Total Records", len(df))
+d2.metric("Unique Categories", df[category_col].nunique())
+d3.metric("Top Category", data_counts.idxmax())
+
+st.bar_chart(data_counts)
+
+dist_df = data_counts.reset_index()
+dist_df.columns = ["Category", "Count"]
 
 st.dataframe(dist_df, use_container_width=True)
-st.bar_chart(data_counts)
