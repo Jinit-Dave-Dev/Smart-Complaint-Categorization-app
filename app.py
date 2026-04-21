@@ -4,6 +4,7 @@ import os
 import pandas as pd
 import sqlite3
 import time  # ✅ added
+import numpy as np  # ✅ added
 
 # -------------------- PAGE CONFIG --------------------
 st.set_page_config(page_title="Municipal Complaint System", layout="wide")
@@ -230,7 +231,7 @@ if user_input.strip():
         col2.markdown(f"<div class='card'>🏛️ {enhanced}</div>", unsafe_allow_html=True)
         col3.markdown(f"<div class='card'>🎯 {get_confidence_label(confidence)}</div>", unsafe_allow_html=True)
 
-        # -------------------- ✅ NEW: WHY PREDICTION --------------------
+        # -------------------- WHY --------------------
         st.markdown("### 🔍 Why this prediction?")
         feature_names = vectorizer.get_feature_names_out()
         tfidf_array = X_new.toarray()[0]
@@ -241,6 +242,23 @@ if user_input.strip():
             st.info("Top keywords influencing prediction: " + ", ".join(top_words))
         else:
             st.info("No strong keywords detected.")
+
+        # -------------------- ✅ NEW FEATURE IMPORTANCE --------------------
+        st.markdown("### 📈 Feature Importance")
+        if hasattr(model, "feature_importances_"):
+            importances = model.feature_importances_
+            top_idx = np.argsort(importances)[-10:]
+            words = [feature_names[i] for i in top_idx]
+            values = importances[top_idx]
+
+            imp_df = pd.DataFrame({
+                "Feature": words,
+                "Importance": values
+            })
+
+            st.bar_chart(imp_df.set_index("Feature"))
+        else:
+            st.info("Feature importance not available for this model.")
 
         # -------------------- SIMILAR --------------------
         st.markdown("### 📋 Similar Complaints")
@@ -290,7 +308,7 @@ for i, (cat, val) in enumerate(top5.items(), start=1):
 st.markdown("### 📊 Dataset Category Distribution")
 st.bar_chart(df[category_col].value_counts())
 
-# -------------------- 🤖 CHATBOT --------------------
+# -------------------- CHATBOT --------------------
 st.markdown("### 🤖 AI Assistant")
 
 if "chat_history" not in st.session_state:
