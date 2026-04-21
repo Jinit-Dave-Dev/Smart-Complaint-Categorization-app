@@ -276,3 +276,4 @@ for sender, msg in st.session_state.chat_history:
         st.markdown(f"**🧑 {msg}**")
     else:
         st.markdown(f"**🤖 {msg}**")
+        
