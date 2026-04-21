@@ -3,7 +3,7 @@ import pickle
 import os
 import pandas as pd
 import sqlite3
-import time   # ✅ ADDED
+import time  # ✅ added
 
 # -------------------- PAGE CONFIG --------------------
 st.set_page_config(page_title="Municipal Complaint System", layout="wide")
@@ -254,30 +254,35 @@ if not saved.empty:
 st.markdown("### 📊 Dataset Category Distribution")
 st.bar_chart(df[category_col].value_counts())
 
-# -------------------- 🤖 CHATBOT --------------------
+# -------------------- 🤖 CHATBOT (UPGRADED ONLY) --------------------
 st.markdown("### 🤖 AI Assistant")
 
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 
+if "suggestions" not in st.session_state:
+    st.session_state.suggestions = ["Hi", "Water issue", "Road problem"]
+
 def chatbot_response(user_text):
     text = user_text.lower()
 
-    if "water" in text:
-        return "💧 This seems related to Water Supply issues."
-    elif "road" in text:
-        return "🛣️ Road & Infrastructure complaint."
-    elif "garbage" in text:
-        return "🗑️ Sanitation issue."
-    elif "electric" in text:
-        return "⚡ Electricity issue."
-    elif "hi" in text:
-        return "👋 Hello!"
-    else:
-        sample = df.sample(1)
-        return f"🤖 Try this similar complaint:\n{sample[complaint_col].values[0]}"
+    if text in ["hi", "hello", "hey"]:
+        st.session_state.suggestions = ["Water issue", "Road issue", "Electricity issue"]
+        return "👋 Hello! How can I help you?"
 
-# ✅ THINKING ANIMATION ADDED
+    elif "water" in text:
+        st.session_state.suggestions = ["No supply", "Leakage"]
+        return "💧 Water issue detected."
+
+    elif "road" in text:
+        st.session_state.suggestions = ["Potholes", "Broken road"]
+        return "🛣️ Road issue detected."
+
+    else:
+        st.session_state.suggestions = ["Water issue", "Garbage issue"]
+        sample = df.sample(1)
+        return f"🤖 Similar complaint:\n{sample[complaint_col].values[0]}"
+
 def thinking_animation():
     placeholder = st.empty()
     for i in range(4):
@@ -294,15 +299,22 @@ def typing_effect(text):
         placeholder.markdown(f"<div class='chat-bot'><span class='badge-bot'>AI</span> {output}</div>", unsafe_allow_html=True)
         time.sleep(0.01)
 
-user_msg = st.text_input("Ask something...")
+def handle_message(msg):
+    st.session_state.chat_history.append(("You", msg))
+    thinking_animation()
+    reply = chatbot_response(msg)
+    st.session_state.chat_history.append(("Bot", reply))
+
+user_msg = st.text_input("💬 Ask something...")
 
 if user_msg:
-    st.session_state.chat_history.append(("You", user_msg))
+    handle_message(user_msg)
 
-    thinking_animation()  # ✅ ADDED HERE
-
-    bot_reply = chatbot_response(user_msg)
-    st.session_state.chat_history.append(("Bot", bot_reply))
+st.markdown("#### ⚡ Quick Suggestions")
+cols = st.columns(len(st.session_state.suggestions))
+for i, s in enumerate(st.session_state.suggestions):
+    if cols[i].button(s):
+        handle_message(s)
 
 for sender, msg in st.session_state.chat_history:
     if sender == "You":
