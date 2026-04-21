@@ -54,48 +54,75 @@ if not st.session_state.logged_in:
     login()
     st.stop()
 
-# -------------------- UI STYLE --------------------
+# -------------------- 🌈 SAAS UI STYLE --------------------
 st.markdown("""
 <style>
-body {background: linear-gradient(135deg,#0f172a,#1e293b); color:white;}
+body {background: linear-gradient(135deg, #0f172a, #1e293b); color: white;}
 
 .big-title {
     text-align:center;
     font-size:34px;
     font-weight:700;
-    background: linear-gradient(90deg,#4CAF50,#00E5FF);
-    -webkit-background-clip:text;
-    -webkit-text-fill-color:transparent;
+    background: linear-gradient(90deg, #4CAF50, #00E5FF);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
 }
 
 .sub-text {text-align:center;color:#94a3b8;}
 
 .card {
-    background:rgba(255,255,255,0.05);
-    padding:20px;border-radius:15px;
-    backdrop-filter:blur(10px);
+    background: rgba(255,255,255,0.05);
+    padding:20px;
+    border-radius:15px;
+    backdrop-filter: blur(10px);
     text-align:center;
+    transition:0.3s;
+}
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0px 10px 25px rgba(0,0,0,0.3);
 }
 
 .kpi {
-    background:rgba(255,255,255,0.08);
-    padding:15px;border-radius:12px;text-align:center;
+    background: rgba(255,255,255,0.08);
+    padding:15px;
+    border-radius:12px;
+    text-align:center;
 }
 
-.user-bubble {
-    background:#4CAF50;
+/* 🔥 Chat UI Upgrade */
+.chat-user {
+    background: linear-gradient(90deg,#4CAF50,#00E5FF);
     padding:10px 15px;
     border-radius:15px;
     margin:5px 0;
     text-align:right;
+    color:black;
+    font-weight:500;
 }
 
-.bot-bubble {
-    background:#1E293B;
+.chat-bot {
+    background: rgba(255,255,255,0.08);
     padding:10px 15px;
     border-radius:15px;
     margin:5px 0;
     text-align:left;
+}
+
+.badge-user {
+    background:black;
+    color:#00E5FF;
+    padding:2px 8px;
+    border-radius:8px;
+    margin-right:5px;
+}
+
+.badge-bot {
+    background:#4CAF50;
+    color:black;
+    padding:2px 8px;
+    border-radius:8px;
+    margin-right:5px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -187,17 +214,40 @@ if user_input.strip():
         sim = df[df[category_col] == prediction].head(5)
         st.dataframe(sim, use_container_width=True)
 
-# -------------------- ADMIN --------------------
+        st.download_button("⬇ Download", sim.to_csv(index=False), "result.csv")
+
+# -------------------- ADMIN PANEL --------------------
 st.markdown("### 🛠️ Admin Panel")
 saved = pd.read_sql_query("SELECT rowid, * FROM complaints", conn)
 st.dataframe(saved, use_container_width=True)
 
+delete_id = st.number_input("Enter Record ID to Delete", min_value=0, step=1)
+if st.button("Delete Record"):
+    c.execute("DELETE FROM complaints WHERE rowid=?", (delete_id,))
+    conn.commit()
+    st.success("Record Deleted")
+    st.rerun()
+
 # -------------------- ANALYTICS --------------------
 st.markdown("### 📊 Analytics Dashboard")
+
 if not saved.empty:
+    total = len(saved)
+    top_category = saved["category"].value_counts().idxmax()
+    avg_conf = saved["confidence"].astype(float).mean()
+
+    k1, k2, k3 = st.columns(3)
+    k1.markdown(f"<div class='kpi'>📌 Total<br><b>{total}</b></div>", unsafe_allow_html=True)
+    k2.markdown(f"<div class='kpi'>🏆 Top<br><b>{top_category}</b></div>", unsafe_allow_html=True)
+    k3.markdown(f"<div class='kpi'>🎯 Confidence<br><b>{round(avg_conf,2)}</b></div>", unsafe_allow_html=True)
+
     st.bar_chart(saved["category"].value_counts())
 
-# -------------------- CHATBOT --------------------
+# -------------------- DATASET --------------------
+st.markdown("### 📊 Dataset Category Distribution")
+st.bar_chart(df[category_col].value_counts())
+
+# -------------------- 🤖 ADVANCED CHATBOT --------------------
 st.markdown("### 🤖 AI Assistant")
 
 if "chat_history" not in st.session_state:
@@ -205,29 +255,38 @@ if "chat_history" not in st.session_state:
 
 def chatbot_response(text):
     t = text.lower()
-    if "water" in t: return "💧 Water Supply issue detected"
-    if "road" in t: return "🛣️ Road issue detected"
-    if "electric" in t: return "⚡ Electricity issue detected"
-    return "🤖 Please provide more details"
+
+    if "water" in t:
+        return "💧 Water Supply issue detected. You can submit complaint in system."
+    elif "road" in t:
+        return "🛣️ Road issue detected. Likely infrastructure related."
+    elif "garbage" in t:
+        return "🗑️ Waste management issue."
+    elif "electric" in t:
+        return "⚡ Electricity issue detected."
+    elif "hi" in t or "hello" in t:
+        return "👋 Hello! Ask me anything about complaints."
+    else:
+        sample = df.sample(1)
+        return f"🤖 Try checking this similar complaint:\n➡️ {sample[complaint_col].values[0]}"
 
 def typing_effect(text):
     placeholder = st.empty()
-    full = ""
+    output = ""
     for char in text:
-        full += char
-        placeholder.markdown(f"<div class='bot-bubble'>{full}</div>", unsafe_allow_html=True)
+        output += char
+        placeholder.markdown(f"<div class='chat-bot'><span class='badge-bot'>AI</span>{output}</div>", unsafe_allow_html=True)
         time.sleep(0.01)
 
-msg = st.text_input("Ask something...")
+msg = st.text_input("💬 Ask your assistant...")
 
 if msg:
     st.session_state.chat_history.append(("user", msg))
     reply = chatbot_response(msg)
     st.session_state.chat_history.append(("bot", reply))
 
-# display chat
 for sender, message in st.session_state.chat_history:
     if sender == "user":
-        st.markdown(f"<div class='user-bubble'>{message}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='chat-user'><span class='badge-user'>YOU</span>{message}</div>", unsafe_allow_html=True)
     else:
         typing_effect(message)
