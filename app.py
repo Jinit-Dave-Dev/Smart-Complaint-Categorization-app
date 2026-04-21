@@ -375,3 +375,62 @@ for sender, msg in st.session_state.chat_history:
         st.markdown(f"<div class='chat-user'><span class='badge-user'>YOU</span> {msg}</div>", unsafe_allow_html=True)
     else:
         typing_effect(msg)
+
+# ================== 🚀 EVALUATION METRICS (ADDED ONLY) ==================
+
+st.markdown("## 📊 Model Evaluation Dashboard")
+
+try:
+    from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+
+    # Load model again safely (no change to your flow)
+    model_eval = pickle.load(open(model_files[model_choice], "rb"))
+
+    # Prepare full dataset
+    X_all = vectorizer.transform(df[complaint_col])
+    y_true = df[category_col]
+
+    # Ensure label consistency
+    try:
+        y_true_encoded = le.transform(y_true)
+    except:
+        y_true_encoded = y_true
+
+    y_pred_all = model_eval.predict(X_all)
+
+    # ---------------- Accuracy ----------------
+    acc = accuracy_score(y_true_encoded, y_pred_all)
+    st.success(f"✅ Model Accuracy: {round(acc*100,2)}%")
+
+    # ---------------- Classification Report ----------------
+    st.markdown("### 📋 Classification Report")
+    report = classification_report(y_true_encoded, y_pred_all, output_dict=True)
+    report_df = pd.DataFrame(report).transpose()
+    st.dataframe(report_df, use_container_width=True)
+
+    # ---------------- Confusion Matrix ----------------
+    st.markdown("### 🔥 Confusion Matrix")
+    cm = confusion_matrix(y_true_encoded, y_pred_all)
+    cm_df = pd.DataFrame(cm)
+    st.dataframe(cm_df, use_container_width=True)
+
+    # ---------------- Heatmap Style ----------------
+    st.markdown("### 🎨 Heatmap View")
+    st.dataframe(cm_df.style.background_gradient(cmap="Blues"))
+
+    # ---------------- Per-Class Accuracy ----------------
+    st.markdown("### 📊 Per-Class Accuracy")
+    class_acc = cm.diagonal() / cm.sum(axis=1)
+
+    class_labels = le.classes_ if hasattr(le, "classes_") else range(len(class_acc))
+
+    class_df = pd.DataFrame({
+        "Category": class_labels,
+        "Accuracy": class_acc
+    })
+
+    st.bar_chart(class_df.set_index("Category"))
+
+except Exception as e:
+    st.warning("⚠️ Evaluation could not be generated.")
+    st.text(str(e))
