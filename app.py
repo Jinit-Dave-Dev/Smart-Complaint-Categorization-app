@@ -56,40 +56,39 @@ if not st.session_state.logged_in:
     st.stop()
 
 # -------------------- UI STYLE --------------------
-st.markdown("""<style>
+st.markdown("""
+<style>
 body {background: linear-gradient(135deg, #0f172a, #1e293b); color: white;}
 .big-title {text-align:center;font-size:34px;font-weight:700;
-background: linear-gradient(90deg,#4CAF50,#00E5FF);
--webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+background: linear-gradient(90deg, #4CAF50, #00E5FF);
+-webkit-background-clip: text;-webkit-text-fill-color: transparent;}
 .sub-text {text-align:center;color:#94a3b8;}
 .card {background: rgba(255,255,255,0.05);padding:20px;border-radius:15px;text-align:center;}
 .kpi {background: rgba(255,255,255,0.08);padding:15px;border-radius:12px;text-align:center;}
-.chat-user {background: linear-gradient(90deg,#4CAF50,#00E5FF);
-padding:10px;border-radius:15px;text-align:right;color:black;}
-.chat-bot {background: rgba(255,255,255,0.08);padding:10px;border-radius:15px;}
-</style>""", unsafe_allow_html=True)
+</style>
+""", unsafe_allow_html=True)
 
 # -------------------- SIDEBAR --------------------
 st.sidebar.title("📊 Dashboard")
-st.sidebar.write(f"👤 Logged in as: {st.session_state.user}")
+st.sidebar.write(f"👤 {st.session_state.user}")
 
-if st.sidebar.button("Logout"):
-    st.session_state.logged_in = False
-    st.rerun()
+page = st.sidebar.radio("📌 Navigate", [
+    "🏠 Home",
+    "🤖 Prediction",
+    "📊 Analytics",
+    "🛠️ Admin",
+    "💬 Chatbot",
+    "📈 Evaluation"
+])
 
 model_choice = st.sidebar.selectbox(
     "🔀 Select Model",
     ["Gradient Boosting", "Logistic Regression", "Naive Bayes"]
 )
 
-# ✅ PAGE NAVIGATION (NEW - WITHOUT BREAKING UI)
-page = st.sidebar.radio("📂 Navigate", [
-    "🏠 Prediction",
-    "📊 Analytics",
-    "🛠️ Admin",
-    "🤖 Chatbot",
-    "📈 Evaluation"
-])
+if st.sidebar.button("Logout"):
+    st.session_state.logged_in = False
+    st.rerun()
 
 # -------------------- DATA --------------------
 file_path = "smart_complaints_dataset_250.csv"
@@ -111,91 +110,64 @@ model_files = {
     "Naive Bayes": "naive_bayes_model.pkl"
 }
 
-# =========================================================
-# 🏠 PAGE 1: PREDICTION (UNCHANGED UI)
-# =========================================================
-if page == "🏠 Prediction":
+# -------------------- HOME --------------------
+if page == "🏠 Home":
+    st.markdown("<div class='big-title'>🏛️ Smart Complaint System</div>", unsafe_allow_html=True)
+    st.markdown("<div class='sub-text'>AI Dashboard</div>", unsafe_allow_html=True)
 
-    st.markdown("<div class='big-title'>🏛️ Smart Municipal Complaint System</div>", unsafe_allow_html=True)
-    st.markdown("<div class='sub-text'>AI-powered complaint classification dashboard</div>", unsafe_allow_html=True)
+# -------------------- PREDICTION --------------------
+if page == "🤖 Prediction":
 
-    user_input = st.text_area("📝 Enter your complaint:", height=150)
+    user_input = st.text_area("Enter Complaint")
 
-    if user_input.strip():
+    if user_input:
         model = pickle.load(open(model_files[model_choice], "rb"))
+        X = vectorizer.transform([user_input])
+        pred = model.predict(X)
+        result = le.inverse_transform(pred)[0]
 
-        X_new = vectorizer.transform([user_input])
-        pred = model.predict(X_new)
-        prediction = le.inverse_transform(pred)[0]
+        st.success(f"Prediction: {result}")
 
-        prob = model.predict_proba(X_new).max()
-        confidence = round(prob * 100, 2)
-
-        st.markdown(f"<div class='card'>📌 {prediction}</div>", unsafe_allow_html=True)
-
-# =========================================================
-# 📊 ANALYTICS PAGE
-# =========================================================
-elif page == "📊 Analytics":
+# -------------------- ANALYTICS --------------------
+if page == "📊 Analytics":
 
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
     if not saved.empty:
-        st.markdown("### 📊 Analytics Dashboard")
-
         st.bar_chart(saved["category"].value_counts())
 
-# =========================================================
-# 🛠️ ADMIN PAGE
-# =========================================================
-elif page == "🛠️ Admin":
+# -------------------- ADMIN --------------------
+if page == "🛠️ Admin":
 
-    saved = pd.read_sql_query("SELECT rowid, * FROM complaints", conn)
+    saved = pd.read_sql_query("SELECT rowid,* FROM complaints", conn)
     st.dataframe(saved)
 
-    delete_id = st.number_input("Delete ID")
-    if st.button("Delete"):
-        c.execute("DELETE FROM complaints WHERE rowid=?", (delete_id,))
-        conn.commit()
-        st.success("Deleted")
-
-# =========================================================
-# 🤖 CHATBOT PAGE
-# =========================================================
-elif page == "🤖 Chatbot":
-
-    st.markdown("### 🤖 AI Assistant")
+# -------------------- CHATBOT --------------------
+if page == "💬 Chatbot":
 
     if "chat" not in st.session_state:
         st.session_state.chat = []
 
-    msg = st.text_input("Message")
+    msg = st.text_input("Ask")
 
     if msg:
-        st.session_state.chat.append(("You", msg))
-        st.session_state.chat.append(("Bot", "Processing..."))
+        st.session_state.chat.append(msg)
 
-    for s, m in st.session_state.chat:
-        if s == "You":
-            st.markdown(f"<div class='chat-user'>{m}</div>", unsafe_allow_html=True)
-        else:
-            st.markdown(f"<div class='chat-bot'>{m}</div>", unsafe_allow_html=True)
+    for m in st.session_state.chat:
+        st.write("You:", m)
 
-# =========================================================
-# 📈 EVALUATION PAGE
-# =========================================================
-elif page == "📈 Evaluation":
+# -------------------- EVALUATION --------------------
+if page == "📈 Evaluation":
 
     from sklearn.metrics import accuracy_score, confusion_matrix
 
     model = pickle.load(open(model_files[model_choice], "rb"))
+    X = vectorizer.transform(df[complaint_col])
+    y = le.transform(df[category_col])
 
-    X_all = vectorizer.transform(df[complaint_col])
-    y_true = le.transform(df[category_col])
-    y_pred = model.predict(X_all)
+    pred = model.predict(X)
 
-    acc = accuracy_score(y_true, y_pred)
-    st.success(f"Accuracy: {round(acc*100,2)}%")
+    st.success(f"Accuracy: {accuracy_score(y, pred)*100:.2f}%")
 
-    cm = confusion_matrix(y_true, y_pred)
+    cm = confusion_matrix(y, pred)
     st.dataframe(pd.DataFrame(cm))
