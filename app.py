@@ -55,58 +55,71 @@ if not st.session_state.logged_in:
     login()
     st.stop()
 
-# -------------------- 🌈 STYLE --------------------
+# -------------------- UI STYLE --------------------
 st.markdown("""
 <style>
 body {background: linear-gradient(135deg, #0f172a, #1e293b); color: white;}
 
-.chat-container {
-    max-height: 400px;
-    overflow-y: auto;
-    padding: 10px;
+.big-title {
+    text-align:center;
+    font-size:34px;
+    font-weight:700;
+    background: linear-gradient(90deg, #4CAF50, #00E5FF);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.sub-text {text-align:center;color:#94a3b8;}
+
+.card {
+    background: rgba(255,255,255,0.05);
+    padding:20px;
+    border-radius:15px;
+    backdrop-filter: blur(10px);
+    text-align:center;
+}
+
+.kpi {
+    background: rgba(255,255,255,0.08);
+    padding:15px;
+    border-radius:12px;
+    text-align:center;
 }
 
 .chat-user {
     background: linear-gradient(90deg,#4CAF50,#00E5FF);
-    padding:10px 15px;
+    padding:10px;
     border-radius:15px;
-    margin:8px 0;
+    margin:5px;
     text-align:right;
     color:black;
-    width: fit-content;
-    margin-left:auto;
 }
 
 .chat-bot {
     background: rgba(255,255,255,0.08);
-    padding:10px 15px;
+    padding:10px;
     border-radius:15px;
-    margin:8px 0;
-    text-align:left;
-    width: fit-content;
-}
-
-.input-box {
-    position: sticky;
-    bottom: 0;
+    margin:5px;
 }
 </style>
 """, unsafe_allow_html=True)
 
 # -------------------- HEADER --------------------
-st.markdown("<h2 style='text-align:center;'>🏛️ Smart Municipal Complaint System</h2>", unsafe_allow_html=True)
+st.markdown("<div class='big-title'>🏛️ Smart Municipal Complaint System</div>", unsafe_allow_html=True)
+st.markdown("<div class='sub-text'>AI-powered complaint classification dashboard</div>", unsafe_allow_html=True)
 
 # -------------------- SIDEBAR --------------------
 st.sidebar.title("📊 Dashboard")
 st.sidebar.write(f"👤 {st.session_state.user}")
-st.sidebar.write("👨‍💻 Jinit Dave")
+st.sidebar.markdown("### 👨‍💻 Developer")
+st.sidebar.write("Jinit Dave")
 
 if st.sidebar.button("Logout"):
     st.session_state.logged_in = False
     st.rerun()
 
 model_choice = st.sidebar.selectbox(
-    "Select Model",
+    "Model",
     ["Gradient Boosting", "Logistic Regression", "Naive Bayes"]
 )
 
@@ -121,9 +134,9 @@ df.columns = df.columns.str.strip()
 complaint_col = next((c for c in df.columns if 'complaint' in c.lower()), None)
 category_col = next((c for c in df.columns if 'category' in c.lower()), None)
 
-df[complaint_col] = df[complaint_col].astype(str)
+df[complaint_col] = df[complaint_col].astype(str).fillna("")
 
-# -------------------- ML --------------------
+# -------------------- LOAD ML --------------------
 vectorizer = pickle.load(open("tfidf_vectorizer.pkl", "rb"))
 le = pickle.load(open("label_encoder.pkl", "rb"))
 
@@ -133,70 +146,96 @@ model_files = {
     "Naive Bayes": "naive_bayes_model.pkl"
 }
 
-# -------------------- TABS --------------------
-tab1, tab2, tab3, tab4 = st.tabs(["📝 Complaint", "📊 Analytics", "🛠️ Admin", "🤖 Assistant"])
+# -------------------- FUNCTIONS --------------------
+def get_confidence_label(conf):
+    try:
+        conf = float(conf)
+        if conf >= 75:
+            return f"{conf}% 🟢 High"
+        elif conf >= 50:
+            return f"{conf}% 🟡 Medium"
+        else:
+            return f"{conf}% 🔴 Low"
+    except:
+        return "N/A"
 
-# ================= TAB 1 =================
+def map_category(text):
+    text = str(text).lower()
+    if "water" in text: return "Water Supply"
+    if "road" in text: return "Road"
+    if "garbage" in text: return "Waste"
+    return "Other"
+
+# ==================== TABS ====================
+tab1, tab2, tab3, tab4 = st.tabs(["📊 Prediction", "📈 Analytics", "🛠️ Admin", "🤖 Chatbot"])
+
+# ==================== TAB 1 ====================
 with tab1:
-    user_input = st.text_area("📝 Enter your complaint")
+    st.markdown("### Enter Complaint")
+    user_input = st.text_area("Complaint")
 
-    if user_input:
+    if user_input.strip():
         model = pickle.load(open(model_files[model_choice], "rb"))
-        X = vectorizer.transform([str(user_input)])
-        pred = le.inverse_transform(model.predict(X))[0]
-        st.success(f"Prediction: {pred}")
 
-# ================= TAB 2 =================
+        X_new = vectorizer.transform([str(user_input)])
+        y_pred = model.predict(X_new)
+        prediction = le.inverse_transform(y_pred)[0]
+
+        try:
+            confidence = round(model.predict_proba(X_new).max() * 100, 2)
+        except:
+            confidence = "N/A"
+
+        enhanced = map_category(user_input)
+
+        c.execute("INSERT INTO complaints VALUES (?,?,?,?,?)",
+                  (st.session_state.user, user_input, prediction, enhanced, str(confidence)))
+        conn.commit()
+
+        col1, col2, col3 = st.columns(3)
+        col1.markdown(f"<div class='card'>📌 {prediction}</div>", unsafe_allow_html=True)
+        col2.markdown(f"<div class='card'>🏛️ {enhanced}</div>", unsafe_allow_html=True)
+        col3.markdown(f"<div class='card'>🎯 {get_confidence_label(confidence)}</div>", unsafe_allow_html=True)
+
+# ==================== TAB 2 ====================
 with tab2:
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
-    st.dataframe(saved)
 
-# ================= TAB 3 =================
+    if not saved.empty:
+        st.bar_chart(saved["category"].value_counts())
+
+# ==================== TAB 3 ====================
 with tab3:
-    saved = pd.read_sql_query("SELECT rowid,* FROM complaints", conn)
+    saved = pd.read_sql_query("SELECT rowid, * FROM complaints", conn)
     st.dataframe(saved)
 
-# ================= TAB 4 (CHATGPT STYLE) =================
-with tab4:
+    delete_id = st.number_input("Delete ID", min_value=0)
+    if st.button("Delete"):
+        c.execute("DELETE FROM complaints WHERE rowid=?", (delete_id,))
+        conn.commit()
+        st.rerun()
 
-    st.markdown("### 🤖 AI Assistant")
+# ==================== TAB 4 ====================
+with tab4:
+    st.markdown("### Chatbot")
 
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
 
-    def chatbot_response(text):
-        text = text.lower()
-
-        if "hi" in text:
-            return "👋 Hello! How can I help you?"
-        elif "water" in text:
-            return "💧 Water issue detected. You can submit complaint."
-        elif "road" in text:
-            return "🛣️ Road issue detected."
-        elif "hello" in text:
-            return "Hey there! 😊"
-        else:
-            try:
-                sample = df.sample(1)
-                return f"🤖 Similar complaint:\n{sample[complaint_col].values[0]}"
-            except:
-                return "Tell me more about your issue."
-
-    # Chat display container
-    chat_box = st.container()
-
-    with chat_box:
-        for sender, msg in st.session_state.chat_history:
-            if sender == "You":
-                st.markdown(f"<div class='chat-user'>{msg}</div>", unsafe_allow_html=True)
-            else:
-                st.markdown(f"<div class='chat-bot'>{msg}</div>", unsafe_allow_html=True)
-
-    # Input
-    user_msg = st.text_input("💬 Type your message...")
+    user_msg = st.text_input("Message")
 
     if user_msg:
         st.session_state.chat_history.append(("You", user_msg))
-        reply = chatbot_response(user_msg)
+
+        if "hello" in user_msg.lower():
+            reply = "Hello! 👋"
+        else:
+            reply = "I can help with complaints."
+
         st.session_state.chat_history.append(("Bot", reply))
-        st.rerun()
+
+    for sender, msg in st.session_state.chat_history:
+        if sender == "You":
+            st.markdown(f"<div class='chat-user'>{msg}</div>", unsafe_allow_html=True)
+        else:
+            st.markdown(f"<div class='chat-bot'>{msg}</div>", unsafe_allow_html=True)
