@@ -59,60 +59,16 @@ if not st.session_state.logged_in:
 st.markdown("""
 <style>
 body {background: linear-gradient(135deg, #0f172a, #1e293b); color: white;}
-
-.big-title {
-    text-align:center;
-    font-size:34px;
-    font-weight:700;
-    background: linear-gradient(90deg, #4CAF50, #00E5FF);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-
-.sub-text {text-align:center;color:#94a3b8;}
-
-.card {
-    background: rgba(255,255,255,0.05);
-    padding:20px;
-    border-radius:15px;
-    backdrop-filter: blur(10px);
-    text-align:center;
-}
-
-.kpi {
-    background: rgba(255,255,255,0.08);
-    padding:15px;
-    border-radius:12px;
-    text-align:center;
-}
-
-.chat-user {
-    background: linear-gradient(90deg,#4CAF50,#00E5FF);
-    padding:10px;
-    border-radius:15px;
-    margin:5px;
-    text-align:right;
-    color:black;
-}
-
-.chat-bot {
-    background: rgba(255,255,255,0.08);
-    padding:10px;
-    border-radius:15px;
-    margin:5px;
-}
+.card {background: rgba(255,255,255,0.05); padding:20px; border-radius:15px;}
+.chat-user {background:#4CAF50;padding:10px;border-radius:10px;margin:5px;text-align:right;color:black;}
+.chat-bot {background:#1e293b;padding:10px;border-radius:10px;margin:5px;}
 </style>
 """, unsafe_allow_html=True)
-
-# -------------------- HEADER --------------------
-st.markdown("<div class='big-title'>🏛️ Smart Municipal Complaint System</div>", unsafe_allow_html=True)
-st.markdown("<div class='sub-text'>AI-powered complaint classification dashboard</div>", unsafe_allow_html=True)
 
 # -------------------- SIDEBAR --------------------
 st.sidebar.title("📊 Dashboard")
 st.sidebar.write(f"👤 {st.session_state.user}")
-st.sidebar.markdown("### 👨‍💻 Developer")
-st.sidebar.write("Jinit Dave")
+st.sidebar.write("👨‍💻 Jinit Dave")
 
 if st.sidebar.button("Logout"):
     st.session_state.logged_in = False
@@ -134,7 +90,8 @@ df.columns = df.columns.str.strip()
 complaint_col = next((c for c in df.columns if 'complaint' in c.lower()), None)
 category_col = next((c for c in df.columns if 'category' in c.lower()), None)
 
-df[complaint_col] = df[complaint_col].astype(str).fillna("")
+# 🔥 FIX ERROR HERE
+df[complaint_col] = df[complaint_col].fillna("").astype(str)
 
 # -------------------- LOAD ML --------------------
 vectorizer = pickle.load(open("tfidf_vectorizer.pkl", "rb"))
@@ -147,95 +104,75 @@ model_files = {
 }
 
 # -------------------- FUNCTIONS --------------------
-def get_confidence_label(conf):
-    try:
-        conf = float(conf)
-        if conf >= 75:
-            return f"{conf}% 🟢 High"
-        elif conf >= 50:
-            return f"{conf}% 🟡 Medium"
-        else:
-            return f"{conf}% 🔴 Low"
-    except:
-        return "N/A"
-
 def map_category(text):
     text = str(text).lower()
-    if "water" in text: return "Water Supply"
+    if "water" in text: return "Water"
     if "road" in text: return "Road"
-    if "garbage" in text: return "Waste"
+    if "garbage" in text: return "Garbage"
+    if "electric" in text: return "Electricity"
     return "Other"
 
-# ==================== TABS ====================
-tab1, tab2, tab3, tab4 = st.tabs(["📊 Prediction", "📈 Analytics", "🛠️ Admin", "🤖 Chatbot"])
+def chatbot_response(msg):
+    msg = msg.lower()
+    if "hi" in msg or "hello" in msg:
+        return "Hello 👋 How can I help you?"
+    elif "how are you" in msg:
+        return "I'm working perfectly 🚀"
+    elif "water" in msg:
+        return "💧 Water issue detected. Try submitting complaint."
+    else:
+        return "🤖 I'm here to help with complaints or general questions."
 
-# ==================== TAB 1 ====================
+# -------------------- TABS --------------------
+tab1, tab2, tab3 = st.tabs(["📌 Complaint", "📊 Dashboard", "🤖 Chatbot"])
+
+# ================= TAB 1 =================
 with tab1:
     st.markdown("### Enter Complaint")
-    user_input = st.text_area("Complaint")
+    user_input = st.text_area("Write complaint")
 
-    if user_input.strip():
+    if user_input:
         model = pickle.load(open(model_files[model_choice], "rb"))
 
-        X_new = vectorizer.transform([str(user_input)])
-        y_pred = model.predict(X_new)
-        prediction = le.inverse_transform(y_pred)[0]
+        X_new = vectorizer.transform([str(user_input)])  # 🔥 FIX
+        pred = model.predict(X_new)
+        prediction = le.inverse_transform(pred)[0]
 
-        try:
-            confidence = round(model.predict_proba(X_new).max() * 100, 2)
-        except:
-            confidence = "N/A"
+        category = map_category(user_input)
 
-        enhanced = map_category(user_input)
+        st.markdown(f"<div class='card'>Prediction: {prediction}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='card'>Category: {category}</div>", unsafe_allow_html=True)
 
-        c.execute("INSERT INTO complaints VALUES (?,?,?,?,?)",
-                  (st.session_state.user, user_input, prediction, enhanced, str(confidence)))
-        conn.commit()
+        # 🔥 DYNAMIC CHART
+        filtered = df[df[category_col] == prediction]
+        st.markdown("### 📊 Complaint Trends")
+        st.bar_chart(filtered[category_col].value_counts())
 
-        col1, col2, col3 = st.columns(3)
-        col1.markdown(f"<div class='card'>📌 {prediction}</div>", unsafe_allow_html=True)
-        col2.markdown(f"<div class='card'>🏛️ {enhanced}</div>", unsafe_allow_html=True)
-        col3.markdown(f"<div class='card'>🎯 {get_confidence_label(confidence)}</div>", unsafe_allow_html=True)
-
-# ==================== TAB 2 ====================
+# ================= TAB 2 =================
 with tab2:
+    st.markdown("### Dashboard")
+
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
     if not saved.empty:
         st.bar_chart(saved["category"].value_counts())
 
-# ==================== TAB 3 ====================
+# ================= TAB 3 =================
 with tab3:
-    saved = pd.read_sql_query("SELECT rowid, * FROM complaints", conn)
-    st.dataframe(saved)
-
-    delete_id = st.number_input("Delete ID", min_value=0)
-    if st.button("Delete"):
-        c.execute("DELETE FROM complaints WHERE rowid=?", (delete_id,))
-        conn.commit()
-        st.rerun()
-
-# ==================== TAB 4 ====================
-with tab4:
     st.markdown("### Chatbot")
 
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = []
+    if "chat" not in st.session_state:
+        st.session_state.chat = []
 
-    user_msg = st.text_input("Message")
+    msg = st.text_input("Message")
 
-    if user_msg:
-        st.session_state.chat_history.append(("You", user_msg))
+    if msg:
+        reply = chatbot_response(msg)
+        st.session_state.chat.append(("You", msg))
+        st.session_state.chat.append(("Bot", reply))
 
-        if "hello" in user_msg.lower():
-            reply = "Hello! 👋"
-        else:
-            reply = "I can help with complaints."
-
-        st.session_state.chat_history.append(("Bot", reply))
-
-    for sender, msg in st.session_state.chat_history:
+    for sender, text in st.session_state.chat:
         if sender == "You":
-            st.markdown(f"<div class='chat-user'>{msg}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='chat-user'>{text}</div>", unsafe_allow_html=True)
         else:
-            st.markdown(f"<div class='chat-bot'>{msg}</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='chat-bot'>{text}</div>", unsafe_allow_html=True)
