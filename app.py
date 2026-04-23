@@ -231,22 +231,122 @@ with tab3:
         st.rerun()
 
 # ================= TAB 4 =================
-with tab4:
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = []
+# with tab4:
+#     if "chat_history" not in st.session_state:
+#         st.session_state.chat_history = []
 
-    msg = st.text_input("💬 Ask something")
+#     msg = st.text_input("💬 Ask something")
 
-    if msg:
-        st.session_state.chat_history.append(("You", msg))
-        reply = smart_reply(msg)
-        st.session_state.chat_history.append(("Bot", reply))
+#     if msg:
+#         st.session_state.chat_history.append(("You", msg))
+#         reply = smart_reply(msg)
+#         st.session_state.chat_history.append(("Bot", reply))
 
-    for sender, text in st.session_state.chat_history:
-        if sender == "You":
-            st.markdown(f"<div class='chat-user'>{text}</div>", unsafe_allow_html=True)
-        else:
-            st.markdown(f"<div class='chat-bot'>{text}</div>", unsafe_allow_html=True)
+#     for sender, text in st.session_state.chat_history:
+#         if sender == "You":
+#             st.markdown(f"<div class='chat-user'>{text}</div>", unsafe_allow_html=True)
+#         else:
+#             st.markdown(f"<div class='chat-bot'>{text}</div>", unsafe_allow_html=True)
+# -------------------- CHATBOT --------------------
+st.markdown("### 🤖 AI Assistant")
+
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+
+if "suggestions" not in st.session_state:
+    st.session_state.suggestions = ["Hi", "Water issue", "Road problem"]
+
+# -------------------- ADVANCED CHATBOT --------------------
+def chatbot_response(user_text):
+    text = user_text.lower().strip()
+
+    # -------- Greetings --------
+    if text in ["hi", "hello", "hey"]:
+        st.session_state.suggestions = ["Water issue", "Road issue", "Garbage issue"]
+        return "👋 Hello! I'm your Smart Assistant. How can I help you today?"
+
+    # -------- Small Talk --------
+    elif "how are you" in text:
+        return "😊 I'm doing great! Ready to help you with anything."
+
+    elif "your name" in text:
+        return "🤖 I'm your Municipal AI Assistant."
+
+    elif "what can you do" in text:
+        return "I can help you with complaints, answer general questions, and guide you through the system."
+
+    elif "thank" in text:
+        return "🙏 You're welcome! Happy to help."
+
+    # -------- Complaint Related --------
+    elif "water" in text:
+        st.session_state.suggestions = ["No supply", "Leakage", "Low pressure"]
+        return "💧 It seems like a water-related issue. You can submit a complaint for quick action."
+
+    elif "road" in text:
+        st.session_state.suggestions = ["Potholes", "Broken road"]
+        return "🛣️ Road infrastructure issue detected. Please provide more details."
+
+    elif "garbage" in text:
+        st.session_state.suggestions = ["Not collected", "Overflow"]
+        return "🗑️ Sanitation issue noted. Authorities can be notified."
+
+    elif "electric" in text:
+        st.session_state.suggestions = ["Power cut", "Street light"]
+        return "⚡ Electricity-related issue detected."
+
+    # -------- Smart fallback using dataset --------
+    else:
+        st.session_state.suggestions = ["Water issue", "Garbage issue", "Road issue"]
+
+        try:
+            sample = df.sample(1)
+            return f"🤖 Here's a similar complaint:\n\n{sample[complaint_col].values[0]}"
+        except:
+            return "🤖 I understand your concern. Please provide more details so I can assist better."
+
+# -------------------- ANIMATIONS --------------------
+def thinking_animation():
+    placeholder = st.empty()
+    for i in range(3):
+        dots = "." * (i + 1)
+        placeholder.markdown(f"<div class='chat-bot'>🤖 Thinking{dots}</div>", unsafe_allow_html=True)
+        time.sleep(0.3)
+    placeholder.empty()
+
+def typing_effect(text):
+    placeholder = st.empty()
+    output = ""
+    for char in text:
+        output += char
+        placeholder.markdown(f"<div class='chat-bot'>{output}</div>", unsafe_allow_html=True)
+        time.sleep(0.01)
+
+def handle_message(msg):
+    st.session_state.chat_history.append(("You", msg))
+    thinking_animation()
+    reply = chatbot_response(msg)
+    st.session_state.chat_history.append(("Bot", reply))
+
+# -------------------- INPUT --------------------
+user_msg = st.text_input("💬 Ask anything...")
+
+if user_msg:
+    handle_message(user_msg)
+
+# -------------------- QUICK SUGGESTIONS --------------------
+st.markdown("#### ⚡ Quick Suggestions")
+cols = st.columns(len(st.session_state.suggestions))
+for i, s in enumerate(st.session_state.suggestions):
+    if cols[i].button(s):
+        handle_message(s)
+
+# -------------------- CHAT DISPLAY --------------------
+for sender, msg in st.session_state.chat_history:
+    if sender == "You":
+        st.markdown(f"<div class='chat-user'>{msg}</div>", unsafe_allow_html=True)
+    else:
+        typing_effect(msg)
 
 # -------------------- FOOTER --------------------
 st.markdown("---")
