@@ -55,7 +55,7 @@ if not st.session_state.logged_in:
     login()
     st.stop()
 
-# -------------------- 🌈 UI STYLE --------------------
+# -------------------- STYLE --------------------
 st.markdown("""
 <style>
 body {background: linear-gradient(135deg, #0f172a, #1e293b); color: white;}
@@ -76,15 +76,10 @@ st.markdown("<div class='sub-text'>AI-powered complaint classification dashboard
 st.sidebar.title("📊 Dashboard")
 st.sidebar.write(f"👤 Logged in as: {st.session_state.user}")
 
-# ✅ KEEP DEVELOPER NAME
 st.sidebar.markdown("### 👨‍💻 Developer")
 st.sidebar.write("Jinit Dave")
 
-# ✅ PAGE SWITCH (SAFE)
-page = st.sidebar.radio(
-    "📂 Navigate",
-    ["🏠 Main", "📊 Analytics", "🤖 Chatbot", "🛠 Admin"]
-)
+page = st.sidebar.radio("📂 Navigate", ["🏠 Main", "📊 Analytics", "🤖 Chatbot", "🛠 Admin", "📈 Evaluation"])
 
 if st.sidebar.button("Logout"):
     st.session_state.logged_in = False
@@ -107,11 +102,10 @@ df.columns = df.columns.str.strip()
 complaint_col = next((c for c in df.columns if 'complaint' in c.lower()), None)
 category_col = next((c for c in df.columns if 'category' in c.lower()), None)
 
-# ✅ FIX ERROR
 df[complaint_col] = df[complaint_col].fillna("").astype(str)
 df[category_col] = df[category_col].fillna("").astype(str)
 
-# -------------------- LOAD ML --------------------
+# -------------------- ML --------------------
 vectorizer = pickle.load(open("tfidf_vectorizer.pkl", "rb"))
 le = pickle.load(open("label_encoder.pkl", "rb"))
 
@@ -130,61 +124,44 @@ def map_category(text):
     if "electric" in text: return "Electricity"
     return "Other"
 
-# ========================= 🏠 MAIN =========================
+# ================= MAIN =================
 if page == "🏠 Main":
 
-    st.markdown("---")
     user_input = st.text_area("📝 Enter your complaint:", height=150)
 
     if user_input.strip():
-        with st.spinner("Analyzing..."):
+        model = pickle.load(open(model_files[model_choice], "rb"))
+        X_new = vectorizer.transform([user_input])
+        prediction = le.inverse_transform(model.predict(X_new))[0]
 
-            model = pickle.load(open(model_files[model_choice], "rb"))
+        st.success(f"Prediction: {prediction}")
 
-            X_new = vectorizer.transform([user_input])
-            y_pred = model.predict(X_new)
-            prediction = le.inverse_transform(y_pred)[0]
-
-            try:
-                prob = model.predict_proba(X_new).max()
-                confidence = round(prob * 100, 2)
-            except:
-                confidence = "N/A"
-
-            enhanced = map_category(user_input)
-
-            c.execute("INSERT INTO complaints VALUES (?,?,?,?,?)",
-                      (st.session_state.user, user_input, prediction, enhanced, str(confidence)))
-            conn.commit()
-
-            col1, col2, col3 = st.columns(3)
-            col1.markdown(f"<div class='card'>📌 {prediction}</div>", unsafe_allow_html=True)
-            col2.markdown(f"<div class='card'>🏛️ {enhanced}</div>", unsafe_allow_html=True)
-            col3.markdown(f"<div class='card'>🎯 {confidence}</div>", unsafe_allow_html=True)
-
-# ========================= 📊 ANALYTICS =========================
+# ================= ANALYTICS =================
 if page == "📊 Analytics":
-
-    st.markdown("### 📊 Analytics Dashboard")
-
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
-
     if not saved.empty:
         st.bar_chart(saved["category"].value_counts())
 
-# ========================= 🤖 CHATBOT =========================
+# ================= CHATBOT =================
 if page == "🤖 Chatbot":
-
-    st.markdown("### 🤖 AI Assistant")
 
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
+
+    def smart_bot(text):
+        text = text.lower()
+        if "water" in text:
+            return "💧 Water issue detected. Try reporting under Water Supply."
+        if "road" in text:
+            return "🛣️ Road issue detected."
+        sample = df.sample(1)
+        return f"🤖 Similar complaint:\n{sample[complaint_col].values[0]}"
 
     msg = st.text_input("Ask something")
 
     if msg:
         st.session_state.chat_history.append(("You", msg))
-        st.session_state.chat_history.append(("Bot", "Got it!"))
+        st.session_state.chat_history.append(("Bot", smart_bot(msg)))
 
     for s, m in st.session_state.chat_history:
         if s == "You":
@@ -192,17 +169,40 @@ if page == "🤖 Chatbot":
         else:
             st.markdown(f"<div class='chat-bot'>{m}</div>", unsafe_allow_html=True)
 
-# ========================= 🛠 ADMIN =========================
+# ================= ADMIN =================
 if page == "🛠 Admin":
-
-    st.markdown("### 🛠️ Admin Panel")
-
     saved = pd.read_sql_query("SELECT rowid,* FROM complaints", conn)
     st.dataframe(saved)
 
-    delete_id = st.number_input("Delete ID", 0)
+# ================= EVALUATION =================
+if page == "📈 Evaluation":
 
-    if st.button("Delete"):
-        c.execute("DELETE FROM complaints WHERE rowid=?", (delete_id,))
-        conn.commit()
-        st.success("Deleted")
+    st.markdown("## 📊 Model Evaluation")
+
+    try:
+        from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+
+        model = pickle.load(open(model_files[model_choice], "rb"))
+
+        X_all = vectorizer.transform(df[complaint_col])
+        y_true = le.transform(df[category_col])
+        y_pred = model.predict(X_all)
+
+        acc = accuracy_score(y_true, y_pred)
+        st.success(f"Accuracy: {round(acc*100,2)}%")
+
+        st.markdown("### Classification Report")
+        report = classification_report(y_true, y_pred, output_dict=True)
+        st.dataframe(pd.DataFrame(report).transpose())
+
+        st.markdown("### Confusion Matrix")
+        cm = confusion_matrix(y_true, y_pred)
+        st.dataframe(pd.DataFrame(cm))
+
+        st.markdown("### Per-Class Accuracy")
+        class_acc = cm.diagonal() / cm.sum(axis=1)
+        st.bar_chart(pd.DataFrame({"Accuracy": class_acc}))
+
+    except Exception as e:
+        st.error("Evaluation error")
+        st.text(str(e))
