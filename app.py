@@ -59,31 +59,55 @@ if not st.session_state.logged_in:
 st.markdown("""
 <style>
 body {background: linear-gradient(135deg, #0f172a, #1e293b); color: white;}
-.big-title {text-align:center;font-size:34px;font-weight:700;background: linear-gradient(90deg, #4CAF50, #00E5FF);-webkit-background-clip: text;-webkit-text-fill-color: transparent;}
-.sub-text {text-align:center;color:#94a3b8;}
-.card {background: rgba(255,255,255,0.05);padding:20px;border-radius:15px;text-align:center;}
-.chat-user {background: linear-gradient(90deg,#4CAF50,#00E5FF);padding:10px;border-radius:15px;text-align:right;color:black;}
-.chat-bot {background: rgba(255,255,255,0.08);padding:10px;border-radius:15px;text-align:left;}
+
+.big-title {
+    text-align:center;
+    font-size:34px;
+    font-weight:700;
+    background: linear-gradient(90deg, #4CAF50, #00E5FF);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+}
+
+.card {
+    background: rgba(255,255,255,0.05);
+    padding:20px;
+    border-radius:15px;
+    text-align:center;
+    transition:0.3s;
+}
+.card:hover {
+    transform: scale(1.05);
+}
+
+.premium-card {
+    background: linear-gradient(135deg,#4CAF50,#00E5FF);
+    padding:25px;
+    border-radius:15px;
+    color:black;
+    font-weight:bold;
+    text-align:center;
+    font-size:18px;
+}
 </style>
 """, unsafe_allow_html=True)
 
 # -------------------- TITLE --------------------
 st.markdown("<div class='big-title'>🏛️ Smart Municipal Complaint System</div>", unsafe_allow_html=True)
-st.markdown("<div class='sub-text'>AI-powered complaint classification dashboard</div>", unsafe_allow_html=True)
 
 # -------------------- SIDEBAR --------------------
 st.sidebar.title("📊 Dashboard")
 st.sidebar.write(f"👤 {st.session_state.user}")
-
-st.sidebar.markdown("### 👨‍💻 Developer")
-st.sidebar.write("Jinit Dave")
-
-page = st.sidebar.radio("📂 Navigate", ["🏠 Main", "📊 Analytics", "🤖 Chatbot", "🛠 Admin", "📈 Evaluation"])
+st.sidebar.write("👨‍💻 Jinit Dave")
 
 if st.sidebar.button("Logout"):
     st.session_state.logged_in = False
-    st.session_state.user = ""
     st.rerun()
+
+model_choice = st.sidebar.selectbox(
+    "Model",
+    ["Gradient Boosting", "Logistic Regression", "Naive Bayes"]
+)
 
 # -------------------- DATA --------------------
 file_path = "smart_complaints_dataset_250.csv"
@@ -93,99 +117,107 @@ if not os.path.exists(file_path):
 df = pd.read_csv(file_path)
 df.columns = df.columns.str.strip()
 
-complaint_col = next((c for c in df.columns if 'complaint' in c.lower()), None)
-category_col = next((c for c in df.columns if 'category' in c.lower()), None)
+complaint_col = [c for c in df.columns if "complaint" in c.lower() or "text" in c.lower()][0]
+category_col = [c for c in df.columns if "category" in c.lower() or "label" in c.lower()][0]
 
-# ✅ CLEANING (BOOST ACCURACY)
-df[complaint_col] = df[complaint_col].fillna("").astype(str).str.lower().str.strip()
-df[category_col] = df[category_col].fillna("").astype(str)
+df[complaint_col] = df[complaint_col].astype(str).fillna("")
 
-# -------------------- LOAD ML --------------------
+# -------------------- LOAD MODEL --------------------
 vectorizer = pickle.load(open("tfidf_vectorizer.pkl", "rb"))
 le = pickle.load(open("label_encoder.pkl", "rb"))
 
-model_files = [
-    "gradient_boosting_model.pkl",
-    "logistic_regression_model.pkl",
-    "naive_bayes_model.pkl"
-]
+model_files = {
+    "Gradient Boosting": "gradient_boosting_model.pkl",
+    "Logistic Regression": "logistic_regression_model.pkl",
+    "Naive Bayes": "naive_bayes_model.pkl"
+}
 
-# -------------------- ENSEMBLE --------------------
-def ensemble_predict(X):
-    preds = []
-    for path in model_files:
-        model = pickle.load(open(path, "rb"))
-        preds.append(model.predict(X))
-    preds = np.array(preds)
-    return np.apply_along_axis(lambda x: np.bincount(x).argmax(), axis=0, arr=preds)
+# -------------------- INPUT --------------------
+user_input = st.text_area("📝 Enter complaint")
 
-# ================= MAIN =================
-if page == "🏠 Main":
+# -------------------- PREDICTION --------------------
+if user_input.strip():
 
-    user_input = st.text_area("📝 Enter your complaint:", height=150)
+    model = pickle.load(open(model_files[model_choice], "rb"))
 
-    if user_input.strip():
-        clean_input = user_input.lower().strip()
+    X_new = vectorizer.transform([str(user_input)])
+    pred = model.predict(X_new)
+    prediction = le.inverse_transform(pred)[0]
 
-        X_new = vectorizer.transform([clean_input])
-        pred_encoded = ensemble_predict(X_new)[0]
-        prediction = le.inverse_transform([pred_encoded])[0]
+    try:
+        prob = model.predict_proba(X_new).max()
+        confidence = round(prob * 100, 2)
+    except:
+        confidence = "N/A"
 
-        st.success(f"Prediction: {prediction}")
+    # -------- PREMIUM OUTPUT UI --------
+    st.markdown("### 🎯 Prediction Result")
 
-# ================= ANALYTICS =================
-if page == "📊 Analytics":
-    saved = pd.read_sql_query("SELECT * FROM complaints", conn)
-    if not saved.empty:
-        st.bar_chart(saved["category"].value_counts())
+    col1, col2, col3 = st.columns(3)
 
-# ================= CHATBOT =================
-if page == "🤖 Chatbot":
+    col1.markdown(f"<div class='premium-card'>📌 {prediction}</div>", unsafe_allow_html=True)
+    col2.markdown(f"<div class='card'>🏛️ Category<br><b>{prediction}</b></div>", unsafe_allow_html=True)
+    col3.markdown(f"<div class='card'>🎯 Confidence<br><b>{confidence}%</b></div>", unsafe_allow_html=True)
 
-    if "chat_history" not in st.session_state:
-        st.session_state.chat_history = []
+    # -------------------- WHY --------------------
+    st.markdown("### 🔍 Explanation")
 
-    def smart_bot(text):
-        text = text.lower()
-        if "water" in text:
-            return "💧 Water issue detected."
-        if "road" in text:
-            return "🛣️ Road issue detected."
-        sample = df.sample(1)
-        return f"🤖 Similar complaint:\n{sample[complaint_col].values[0]}"
+    feature_names = vectorizer.get_feature_names_out()
+    tfidf = X_new.toarray()[0]
 
-    msg = st.text_input("Ask something")
+    top_idx = tfidf.argsort()[-5:][::-1]
+    words = [feature_names[i] for i in top_idx if tfidf[i] > 0]
 
-    if msg:
-        st.session_state.chat_history.append(("You", msg))
-        st.session_state.chat_history.append(("Bot", smart_bot(msg)))
+    if words:
+        st.info("Keywords: " + ", ".join(words))
 
-    for s, m in st.session_state.chat_history:
-        if s == "You":
-            st.markdown(f"<div class='chat-user'>{m}</div>", unsafe_allow_html=True)
-        else:
-            st.markdown(f"<div class='chat-bot'>{m}</div>", unsafe_allow_html=True)
+    # -------------------- SIMILAR --------------------
+    st.markdown("### 📋 Similar Complaints")
+    sim = df[df[category_col] == prediction].head(5)
+    st.dataframe(sim)
 
-# ================= ADMIN =================
-if page == "🛠 Admin":
-    saved = pd.read_sql_query("SELECT rowid,* FROM complaints", conn)
-    st.dataframe(saved)
+# -------------------- ADMIN --------------------
+st.markdown("### 🛠️ Admin Panel")
+saved = pd.read_sql_query("SELECT rowid,* FROM complaints", conn)
+st.dataframe(saved)
 
-# ================= EVALUATION =================
-if page == "📈 Evaluation":
+# -------------------- CHATBOT --------------------
+st.markdown("### 🤖 Chatbot")
 
-    st.markdown("## 📊 Model Evaluation")
+if "chat" not in st.session_state:
+    st.session_state.chat = []
 
-    from sklearn.metrics import accuracy_score
+msg = st.text_input("Ask...")
 
-    # ✅ FIX LABEL MISMATCH
-    df_eval = df[df[category_col].isin(le.classes_)]
+if msg:
+    st.session_state.chat.append(("You", msg))
+    reply = "Try describing your issue clearly."
+    st.session_state.chat.append(("Bot", reply))
 
-    X_all = vectorizer.transform(df_eval[complaint_col])
-    y_true = le.transform(df_eval[category_col])
+for s, m in st.session_state.chat:
+    st.write(f"**{s}:** {m}")
 
-    y_pred = ensemble_predict(X_all)
+# -------------------- EVALUATION (HIDDEN ACCURACY) --------------------
+st.markdown("### 📊 Model Insights")
 
-    acc = accuracy_score(y_true, y_pred)
+try:
+    from sklearn.metrics import classification_report, confusion_matrix
 
-    st.success(f"🚀 Ensemble Accuracy: {round(acc*100,2)}%")
+    model_eval = pickle.load(open(model_files[model_choice], "rb"))
+
+    X_all = vectorizer.transform(df[complaint_col].astype(str))
+    y_true = le.transform(df[category_col])
+    y_pred = model_eval.predict(X_all)
+
+    # ❌ Accuracy REMOVED (as requested)
+
+    st.markdown("### 📋 Classification Report")
+    report = classification_report(y_true, y_pred, output_dict=True)
+    st.dataframe(pd.DataFrame(report).transpose())
+
+    st.markdown("### 🔥 Confusion Matrix")
+    cm = confusion_matrix(y_true, y_pred)
+    st.dataframe(pd.DataFrame(cm))
+
+except Exception as e:
+    st.warning("Evaluation not available")
