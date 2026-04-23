@@ -75,8 +75,14 @@ model_choice = st.sidebar.selectbox(
 
 # ===================== LOAD DATA =====================
 df = pd.read_csv("smart_complaints_dataset_250.csv")
-complaint_col = df.columns[0]
-category_col = df.columns[1]
+
+df.columns = df.columns.str.strip()
+
+complaint_col = next((c for c in df.columns if 'complaint' in c.lower() or 'text' in c.lower()), df.columns[0])
+category_col = next((c for c in df.columns if 'category' in c.lower() or 'label' in c.lower()), df.columns[1])
+
+# ✅ CRITICAL FIX (THIS SOLVES YOUR ERROR)
+df[complaint_col] = df[complaint_col].astype(str).fillna("")
 
 vectorizer = pickle.load(open("tfidf_vectorizer.pkl", "rb"))
 le = pickle.load(open("label_encoder.pkl", "rb"))
@@ -102,7 +108,7 @@ with tab1:
     user_input = st.text_area("Enter complaint")
 
     if user_input:
-        X = vectorizer.transform([user_input])
+        X = vectorizer.transform([str(user_input)])
         pred = model.predict(X)[0]
         label = le.inverse_transform([pred])[0]
 
@@ -123,7 +129,6 @@ with tab2:
     if not saved.empty:
         st.bar_chart(saved["category"].value_counts())
 
-        # EXPORT BUTTON
         csv = saved.to_csv(index=False)
         st.download_button("Download CSV", csv, "analytics.csv")
 
