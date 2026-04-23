@@ -68,15 +68,11 @@ body {background: linear-gradient(135deg, #0f172a, #1e293b); color: white;}
 
 # -------------------- TITLE --------------------
 st.markdown("<div class='big-title'>🏛️ Smart Municipal Complaint System</div>", unsafe_allow_html=True)
+st.markdown("<div class='sub-text'>AI-powered complaint classification dashboard</div>", unsafe_allow_html=True)
 
 # -------------------- SIDEBAR --------------------
 st.sidebar.title("📊 Dashboard")
 st.sidebar.write(f"👤 Logged in as: {st.session_state.user}")
-
-page = st.sidebar.radio(
-    "📂 Navigate",
-    ["🏠 Main", "📊 Analytics", "🤖 Chatbot", "🛠️ Admin", "📈 Evaluation"]
-)
 
 model_choice = st.sidebar.selectbox(
     "🔀 Select Model",
@@ -96,8 +92,10 @@ if not os.path.exists(file_path):
 df = pd.read_csv(file_path)
 df.columns = df.columns.str.strip()
 
-complaint_col = df.columns[0]
-category_col = df.columns[1]
+complaint_col = next((c for c in df.columns if 'complaint' in c.lower() or 'text' in c.lower()), None)
+category_col = next((c for c in df.columns if 'category' in c.lower() or 'label' in c.lower()), None)
+
+df[complaint_col] = df[complaint_col].astype(str)
 
 vectorizer = pickle.load(open("tfidf_vectorizer.pkl", "rb"))
 le = pickle.load(open("label_encoder.pkl", "rb"))
@@ -108,33 +106,42 @@ model_files = {
     "Naive Bayes": "naive_bayes_model.pkl"
 }
 
-# -------------------- MAIN PAGE --------------------
-if page == "🏠 Main":
+# -------------------- TABS --------------------
+tabs = st.tabs(["🏠 Main", "📊 Analytics", "🤖 Chatbot", "🛠️ Admin", "📈 Evaluation"])
 
+# ===================== MAIN =====================
+with tabs[0]:
     st.markdown("---")
     user_input = st.text_area("📝 Enter your complaint:", height=150)
 
     if user_input.strip():
         with st.spinner("Analyzing complaint..."):
-
             model = pickle.load(open(model_files[model_choice], "rb"))
 
             X_new = vectorizer.transform([user_input])
             y_pred = model.predict(X_new)
             prediction = le.inverse_transform(y_pred)[0]
 
+            try:
+                prob = model.predict_proba(X_new).max()
+                confidence = round(prob * 100, 2)
+            except:
+                confidence = "N/A"
+
             st.success(f"📌 Prediction: {prediction}")
+            st.info(f"🎯 Confidence: {confidence}")
 
-# -------------------- ANALYTICS --------------------
-elif page == "📊 Analytics":
-
+# ===================== ANALYTICS =====================
+with tabs[1]:
+    st.markdown("### 📊 Analytics Dashboard")
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
     if not saved.empty:
         st.bar_chart(saved["category"].value_counts())
 
-# -------------------- CHATBOT --------------------
-elif page == "🤖 Chatbot":
+# ===================== CHATBOT =====================
+with tabs[2]:
+    st.markdown("### 🤖 AI Assistant")
 
     if "chat_history" not in st.session_state:
         st.session_state.chat_history = []
@@ -148,29 +155,35 @@ elif page == "🤖 Chatbot":
     for sender, msg in st.session_state.chat_history:
         st.write(f"{sender}: {msg}")
 
-# -------------------- ADMIN --------------------
-elif page == "🛠️ Admin":
-
+# ===================== ADMIN =====================
+with tabs[3]:
+    st.markdown("### 🛠️ Admin Panel")
     saved = pd.read_sql_query("SELECT rowid, * FROM complaints", conn)
     st.dataframe(saved)
 
-# -------------------- EVALUATION --------------------
-elif page == "📈 Evaluation":
+# ===================== EVALUATION =====================
+with tabs[4]:
+    st.markdown("## 📊 Model Evaluation")
 
-    from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+    try:
+        from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
 
-    model = pickle.load(open(model_files[model_choice], "rb"))
+        model = pickle.load(open(model_files[model_choice], "rb"))
 
-    X_all = vectorizer.transform(df[complaint_col])
-    y_true = le.transform(df[category_col])
-    y_pred = model.predict(X_all)
+        X_all = vectorizer.transform(df[complaint_col])
+        y_true = le.transform(df[category_col])
+        y_pred = model.predict(X_all)
 
-    st.success(f"Accuracy: {round(accuracy_score(y_true, y_pred)*100,2)}%")
+        st.success(f"Accuracy: {round(accuracy_score(y_true, y_pred)*100,2)}%")
 
-    st.markdown("### Classification Report")
-    report = classification_report(y_true, y_pred, output_dict=True)
-    st.dataframe(pd.DataFrame(report).transpose())
+        st.markdown("### Classification Report")
+        report = classification_report(y_true, y_pred, output_dict=True)
+        st.dataframe(pd.DataFrame(report).transpose())
 
-    st.markdown("### Confusion Matrix")
-    cm = confusion_matrix(y_true, y_pred)
-    st.dataframe(pd.DataFrame(cm))
+        st.markdown("### Confusion Matrix")
+        cm = confusion_matrix(y_true, y_pred)
+        st.dataframe(pd.DataFrame(cm))
+
+    except Exception as e:
+        st.warning("Evaluation failed")
+        st.text(str(e))
