@@ -55,7 +55,7 @@ if not st.session_state.logged_in:
     login()
     st.stop()
 
-# -------------------- STYLE --------------------
+# -------------------- 🌈 UI STYLE --------------------
 st.markdown("""
 <style>
 body {background: linear-gradient(135deg, #0f172a, #1e293b); color: white;}
@@ -74,13 +74,27 @@ st.markdown("<div class='sub-text'>AI-powered complaint classification dashboard
 
 # -------------------- SIDEBAR --------------------
 st.sidebar.title("📊 Dashboard")
-st.sidebar.write(f"👤 {st.session_state.user}")
+st.sidebar.write(f"👤 Logged in as: {st.session_state.user}")
+
+# ✅ KEEP DEVELOPER NAME
+st.sidebar.markdown("### 👨‍💻 Developer")
+st.sidebar.write("Jinit Dave")
+
+# ✅ PAGE SWITCH (SAFE)
+page = st.sidebar.radio(
+    "📂 Navigate",
+    ["🏠 Main", "📊 Analytics", "🤖 Chatbot", "🛠 Admin"]
+)
 
 if st.sidebar.button("Logout"):
     st.session_state.logged_in = False
+    st.session_state.user = ""
     st.rerun()
 
-model_choice = st.sidebar.selectbox("Model", ["Gradient Boosting","Logistic Regression","Naive Bayes"])
+model_choice = st.sidebar.selectbox(
+    "🔀 Select Model",
+    ["Gradient Boosting", "Logistic Regression", "Naive Bayes"]
+)
 
 # -------------------- DATA --------------------
 file_path = "smart_complaints_dataset_250.csv"
@@ -93,11 +107,11 @@ df.columns = df.columns.str.strip()
 complaint_col = next((c for c in df.columns if 'complaint' in c.lower()), None)
 category_col = next((c for c in df.columns if 'category' in c.lower()), None)
 
-# FIX CRASH
+# ✅ FIX ERROR
 df[complaint_col] = df[complaint_col].fillna("").astype(str)
 df[category_col] = df[category_col].fillna("").astype(str)
 
-# -------------------- ML --------------------
+# -------------------- LOAD ML --------------------
 vectorizer = pickle.load(open("tfidf_vectorizer.pkl", "rb"))
 le = pickle.load(open("label_encoder.pkl", "rb"))
 
@@ -107,64 +121,82 @@ model_files = {
     "Naive Bayes": "naive_bayes_model.pkl"
 }
 
-# -------------------- SAFE ENSEMBLE --------------------
-def ensemble_predict(X):
-    preds = []
-    for m in model_files.values():
-        model = pickle.load(open(m, "rb"))
-        preds.append(model.predict(X))
-    preds = np.array(preds)
-    return np.apply_along_axis(lambda x: np.bincount(x).argmax(), axis=0, arr=preds)
+# -------------------- CATEGORY MAP --------------------
+def map_category(text):
+    text = str(text).lower()
+    if "water" in text: return "Water Supply"
+    if "road" in text: return "Road & Infrastructure"
+    if "garbage" in text: return "Sanitation & Waste"
+    if "electric" in text: return "Electricity"
+    return "Other"
 
-# -------------------- TABS --------------------
-tab1, tab2, tab3, tab4 = st.tabs(["🏠 Predict", "📊 Analytics", "🤖 Chatbot", "🛠 Admin"])
+# ========================= 🏠 MAIN =========================
+if page == "🏠 Main":
 
-# ================= TAB 1 =================
-with tab1:
-    user_input = st.text_area("Enter complaint")
+    st.markdown("---")
+    user_input = st.text_area("📝 Enter your complaint:", height=150)
 
-    if user_input:
-        X_new = vectorizer.transform([user_input])
+    if user_input.strip():
+        with st.spinner("Analyzing..."):
 
-        # ENSEMBLE prediction
-        pred_encoded = ensemble_predict(X_new)[0]
-        prediction = le.inverse_transform([pred_encoded])[0]
+            model = pickle.load(open(model_files[model_choice], "rb"))
 
-        st.success(f"Prediction: {prediction}")
+            X_new = vectorizer.transform([user_input])
+            y_pred = model.predict(X_new)
+            prediction = le.inverse_transform(y_pred)[0]
 
-# ================= TAB 2 =================
-with tab2:
+            try:
+                prob = model.predict_proba(X_new).max()
+                confidence = round(prob * 100, 2)
+            except:
+                confidence = "N/A"
+
+            enhanced = map_category(user_input)
+
+            c.execute("INSERT INTO complaints VALUES (?,?,?,?,?)",
+                      (st.session_state.user, user_input, prediction, enhanced, str(confidence)))
+            conn.commit()
+
+            col1, col2, col3 = st.columns(3)
+            col1.markdown(f"<div class='card'>📌 {prediction}</div>", unsafe_allow_html=True)
+            col2.markdown(f"<div class='card'>🏛️ {enhanced}</div>", unsafe_allow_html=True)
+            col3.markdown(f"<div class='card'>🎯 {confidence}</div>", unsafe_allow_html=True)
+
+# ========================= 📊 ANALYTICS =========================
+if page == "📊 Analytics":
+
+    st.markdown("### 📊 Analytics Dashboard")
+
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
     if not saved.empty:
         st.bar_chart(saved["category"].value_counts())
 
-    # ADVANCED CHART
-    st.line_chart(saved["confidence"].astype(float), use_container_width=True)
+# ========================= 🤖 CHATBOT =========================
+if page == "🤖 Chatbot":
 
-    # CSV EXPORT
-    st.download_button("Download CSV", saved.to_csv(index=False), "data.csv")
+    st.markdown("### 🤖 AI Assistant")
 
-# ================= TAB 3 =================
-with tab3:
-    if "chat" not in st.session_state:
-        st.session_state.chat = []
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = []
 
     msg = st.text_input("Ask something")
 
     if msg:
-        response = f"I understand: {msg}"
-        st.session_state.chat.append(("You", msg))
-        st.session_state.chat.append(("Bot", response))
+        st.session_state.chat_history.append(("You", msg))
+        st.session_state.chat_history.append(("Bot", "Got it!"))
 
-    for s, m in st.session_state.chat:
+    for s, m in st.session_state.chat_history:
         if s == "You":
             st.markdown(f"<div class='chat-user'>{m}</div>", unsafe_allow_html=True)
         else:
             st.markdown(f"<div class='chat-bot'>{m}</div>", unsafe_allow_html=True)
 
-# ================= TAB 4 =================
-with tab4:
+# ========================= 🛠 ADMIN =========================
+if page == "🛠 Admin":
+
+    st.markdown("### 🛠️ Admin Panel")
+
     saved = pd.read_sql_query("SELECT rowid,* FROM complaints", conn)
     st.dataframe(saved)
 
@@ -174,29 +206,3 @@ with tab4:
         c.execute("DELETE FROM complaints WHERE rowid=?", (delete_id,))
         conn.commit()
         st.success("Deleted")
-
-# -------------------- PDF EXPORT --------------------
-st.markdown("---")
-st.markdown("### 📄 Export Report")
-
-def generate_report():
-    return df.head(20).to_csv(index=False)
-
-st.download_button("Download Sample Report", generate_report(), "report.csv")
-
-# -------------------- EVALUATION --------------------
-st.markdown("### 📊 Model Evaluation")
-
-try:
-    from sklearn.metrics import accuracy_score
-
-    X_all = vectorizer.transform(df[complaint_col])
-    y_true = le.transform(df[category_col])
-
-    preds = ensemble_predict(X_all)
-
-    acc = accuracy_score(y_true, preds)
-    st.success(f"Accuracy (Ensemble): {round(acc*100,2)}%")
-
-except:
-    st.warning("Evaluation safe-handled")
