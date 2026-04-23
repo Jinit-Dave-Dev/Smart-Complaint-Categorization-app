@@ -55,31 +55,28 @@ if not st.session_state.logged_in:
     login()
     st.stop()
 
-# -------------------- UI STYLE --------------------
+# -------------------- STYLE --------------------
 st.markdown("""
 <style>
 body {background: linear-gradient(135deg, #0f172a, #1e293b); color: white;}
-.big-title {text-align:center;font-size:34px;font-weight:700;
-background: linear-gradient(90deg, #4CAF50, #00E5FF);
--webkit-background-clip: text;-webkit-text-fill-color: transparent;}
+.big-title {text-align:center;font-size:34px;font-weight:700;}
 .sub-text {text-align:center;color:#94a3b8;}
 .card {background: rgba(255,255,255,0.05);padding:20px;border-radius:15px;text-align:center;}
 .kpi {background: rgba(255,255,255,0.08);padding:15px;border-radius:12px;text-align:center;}
 </style>
 """, unsafe_allow_html=True)
 
+# -------------------- TITLE --------------------
+st.markdown("<div class='big-title'>🏛️ Smart Municipal Complaint System</div>", unsafe_allow_html=True)
+
 # -------------------- SIDEBAR --------------------
 st.sidebar.title("📊 Dashboard")
-st.sidebar.write(f"👤 {st.session_state.user}")
+st.sidebar.write(f"👤 Logged in as: {st.session_state.user}")
 
-page = st.sidebar.radio("📌 Navigate", [
-    "🏠 Home",
-    "🤖 Prediction",
-    "📊 Analytics",
-    "🛠️ Admin",
-    "💬 Chatbot",
-    "📈 Evaluation"
-])
+page = st.sidebar.radio(
+    "📂 Navigate",
+    ["🏠 Main", "📊 Analytics", "🤖 Chatbot", "🛠️ Admin", "📈 Evaluation"]
+)
 
 model_choice = st.sidebar.selectbox(
     "🔀 Select Model",
@@ -88,6 +85,7 @@ model_choice = st.sidebar.selectbox(
 
 if st.sidebar.button("Logout"):
     st.session_state.logged_in = False
+    st.session_state.user = ""
     st.rerun()
 
 # -------------------- DATA --------------------
@@ -98,8 +96,8 @@ if not os.path.exists(file_path):
 df = pd.read_csv(file_path)
 df.columns = df.columns.str.strip()
 
-complaint_col = next((c for c in df.columns if 'complaint' in c.lower()), None)
-category_col = next((c for c in df.columns if 'category' in c.lower()), None)
+complaint_col = df.columns[0]
+category_col = df.columns[1]
 
 vectorizer = pickle.load(open("tfidf_vectorizer.pkl", "rb"))
 le = pickle.load(open("label_encoder.pkl", "rb"))
@@ -110,64 +108,69 @@ model_files = {
     "Naive Bayes": "naive_bayes_model.pkl"
 }
 
-# -------------------- HOME --------------------
-if page == "🏠 Home":
-    st.markdown("<div class='big-title'>🏛️ Smart Complaint System</div>", unsafe_allow_html=True)
-    st.markdown("<div class='sub-text'>AI Dashboard</div>", unsafe_allow_html=True)
+# -------------------- MAIN PAGE --------------------
+if page == "🏠 Main":
 
-# -------------------- PREDICTION --------------------
-if page == "🤖 Prediction":
+    st.markdown("---")
+    user_input = st.text_area("📝 Enter your complaint:", height=150)
 
-    user_input = st.text_area("Enter Complaint")
+    if user_input.strip():
+        with st.spinner("Analyzing complaint..."):
 
-    if user_input:
-        model = pickle.load(open(model_files[model_choice], "rb"))
-        X = vectorizer.transform([user_input])
-        pred = model.predict(X)
-        result = le.inverse_transform(pred)[0]
+            model = pickle.load(open(model_files[model_choice], "rb"))
 
-        st.success(f"Prediction: {result}")
+            X_new = vectorizer.transform([user_input])
+            y_pred = model.predict(X_new)
+            prediction = le.inverse_transform(y_pred)[0]
+
+            st.success(f"📌 Prediction: {prediction}")
 
 # -------------------- ANALYTICS --------------------
-if page == "📊 Analytics":
+elif page == "📊 Analytics":
 
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
     if not saved.empty:
         st.bar_chart(saved["category"].value_counts())
 
-# -------------------- ADMIN --------------------
-if page == "🛠️ Admin":
+# -------------------- CHATBOT --------------------
+elif page == "🤖 Chatbot":
 
-    saved = pd.read_sql_query("SELECT rowid,* FROM complaints", conn)
+    if "chat_history" not in st.session_state:
+        st.session_state.chat_history = []
+
+    user_msg = st.text_input("💬 Ask something...")
+
+    if user_msg:
+        st.session_state.chat_history.append(("You", user_msg))
+        st.session_state.chat_history.append(("Bot", "Try describing your complaint clearly."))
+
+    for sender, msg in st.session_state.chat_history:
+        st.write(f"{sender}: {msg}")
+
+# -------------------- ADMIN --------------------
+elif page == "🛠️ Admin":
+
+    saved = pd.read_sql_query("SELECT rowid, * FROM complaints", conn)
     st.dataframe(saved)
 
-# -------------------- CHATBOT --------------------
-if page == "💬 Chatbot":
-
-    if "chat" not in st.session_state:
-        st.session_state.chat = []
-
-    msg = st.text_input("Ask")
-
-    if msg:
-        st.session_state.chat.append(msg)
-
-    for m in st.session_state.chat:
-        st.write("You:", m)
-
 # -------------------- EVALUATION --------------------
-if page == "📈 Evaluation":
+elif page == "📈 Evaluation":
 
-    from sklearn.metrics import accuracy_score, confusion_matrix
+    from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
 
     model = pickle.load(open(model_files[model_choice], "rb"))
-    X = vectorizer.transform(df[complaint_col])
-    y = le.transform(df[category_col])
 
-    pred = model.predict(X)
+    X_all = vectorizer.transform(df[complaint_col])
+    y_true = le.transform(df[category_col])
+    y_pred = model.predict(X_all)
 
-    st.success(f"Accuracy: {accuracy_score(y, pred)*100:.2f}%")
+    st.success(f"Accuracy: {round(accuracy_score(y_true, y_pred)*100,2)}%")
 
-    cm = confusion_matrix(y, pred)
+    st.markdown("### Classification Report")
+    report = classification_report(y_true, y_pred, output_dict=True)
+    st.dataframe(pd.DataFrame(report).transpose())
+
+    st.markdown("### Confusion Matrix")
+    cm = confusion_matrix(y_true, y_pred)
     st.dataframe(pd.DataFrame(cm))
