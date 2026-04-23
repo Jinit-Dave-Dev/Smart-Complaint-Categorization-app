@@ -1,3 +1,4 @@
+# ===================== IMPORTS =====================
 import streamlit as st
 import pickle
 import os
@@ -6,10 +7,10 @@ import sqlite3
 import time
 import numpy as np
 
-# -------------------- PAGE CONFIG --------------------
+# ===================== PAGE CONFIG =====================
 st.set_page_config(page_title="Municipal Complaint System", layout="wide")
 
-# -------------------- DATABASE --------------------
+# ===================== DATABASE =====================
 conn = sqlite3.connect("complaints.db", check_same_thread=False)
 c = conn.cursor()
 
@@ -23,13 +24,13 @@ c.execute("""CREATE TABLE IF NOT EXISTS complaints (
 )""")
 conn.commit()
 
-# -------------------- SESSION --------------------
+# ===================== SESSION =====================
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "user" not in st.session_state:
     st.session_state.user = ""
 
-# -------------------- LOGIN --------------------
+# ===================== LOGIN =====================
 def login():
     st.markdown("<h2 style='text-align:center;'>🔐 Login System</h2>", unsafe_allow_html=True)
 
@@ -55,60 +56,28 @@ if not st.session_state.logged_in:
     login()
     st.stop()
 
-# -------------------- 🌈 UI STYLE --------------------
+# ===================== STYLE =====================
 st.markdown("""
 <style>
-body {background: linear-gradient(135deg, #0f172a, #1e293b); color: white;}
-
-.big-title {
-    text-align:center;
-    font-size:34px;
-    font-weight:700;
-    background: linear-gradient(90deg, #4CAF50, #00E5FF);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-}
-
-.card {
-    background: rgba(255,255,255,0.05);
-    padding:20px;
-    border-radius:15px;
-    text-align:center;
-}
-
-.kpi {
-    background: rgba(255,255,255,0.08);
-    padding:15px;
-    border-radius:12px;
-    text-align:center;
-}
+.card {padding:20px;border-radius:15px;background:rgba(255,255,255,0.05);}
+.kpi {padding:15px;border-radius:12px;background:rgba(255,255,255,0.08);}
 </style>
 """, unsafe_allow_html=True)
 
-# -------------------- TITLE --------------------
-st.markdown("<div class='big-title'>🏛️ Smart Municipal Complaint System</div>", unsafe_allow_html=True)
-
-# -------------------- SIDEBAR --------------------
+# ===================== SIDEBAR =====================
 st.sidebar.title("📊 Dashboard")
 st.sidebar.write(f"👤 {st.session_state.user}")
-
-if st.sidebar.button("Logout"):
-    st.session_state.logged_in = False
-    st.rerun()
 
 model_choice = st.sidebar.selectbox(
     "Model",
     ["Gradient Boosting", "Logistic Regression", "Naive Bayes"]
 )
 
-# -------------------- DATA --------------------
-file_path = "smart_complaints_dataset_250.csv"
-df = pd.read_csv(file_path)
-
+# ===================== LOAD DATA =====================
+df = pd.read_csv("smart_complaints_dataset_250.csv")
 complaint_col = df.columns[0]
 category_col = df.columns[1]
 
-# -------------------- LOAD ML --------------------
 vectorizer = pickle.load(open("tfidf_vectorizer.pkl", "rb"))
 le = pickle.load(open("label_encoder.pkl", "rb"))
 
@@ -118,55 +87,49 @@ model_files = {
     "Naive Bayes": "naive_bayes_model.pkl"
 }
 
-# -------------------- TABS (SAFE) --------------------
-tab1, tab2, tab3, tab4 = st.tabs([
-    "🧠 Prediction",
-    "📊 Analytics",
-    "🛠 Admin",
-    "🤖 Chatbot"
-])
+# ===================== SAFE MODEL LOAD =====================
+@st.cache_resource
+def load_model(name):
+    return pickle.load(open(model_files[name], "rb"))
 
-# ================== TAB 1 ==================
+model = load_model(model_choice)
+
+# ===================== TABS =====================
+tab1, tab2, tab3, tab4 = st.tabs(["🏠 Main", "📊 Analytics", "🤖 Chatbot", "⚙ Admin"])
+
+# ===================== TAB 1 =====================
 with tab1:
-
     user_input = st.text_area("Enter complaint")
 
     if user_input:
-        model = pickle.load(open(model_files[model_choice], "rb"))
-
         X = vectorizer.transform([user_input])
-        pred = model.predict(X)
-        label = le.inverse_transform(pred)[0]
+        pred = model.predict(X)[0]
+        label = le.inverse_transform([pred])[0]
 
-        st.success(label)
+        try:
+            conf = model.predict_proba(X).max() * 100
+        except:
+            conf = 0
 
-        c.execute("INSERT INTO complaints VALUES (?,?,?,?,?)",
-                  (st.session_state.user, user_input, label, label, "90"))
-        conn.commit()
+        st.markdown(f"<div class='card'>Prediction: {label}</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='card'>Confidence: {round(conf,2)}%</div>", unsafe_allow_html=True)
 
-# ================== TAB 2 ==================
+# ===================== TAB 2 =====================
 with tab2:
+    st.subheader("Analytics")
 
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
     if not saved.empty:
         st.bar_chart(saved["category"].value_counts())
 
-# ================== TAB 3 ==================
+        # EXPORT BUTTON
+        csv = saved.to_csv(index=False)
+        st.download_button("Download CSV", csv, "analytics.csv")
+
+# ===================== TAB 3 =====================
 with tab3:
-
-    saved = pd.read_sql_query("SELECT rowid,* FROM complaints", conn)
-    st.dataframe(saved)
-
-    delete_id = st.number_input("Delete ID", step=1)
-
-    if st.button("Delete"):
-        c.execute("DELETE FROM complaints WHERE rowid=?", (delete_id,))
-        conn.commit()
-        st.success("Deleted")
-
-# ================== TAB 4 ==================
-with tab4:
+    st.subheader("Chatbot")
 
     if "chat" not in st.session_state:
         st.session_state.chat = []
@@ -175,23 +138,34 @@ with tab4:
 
     if msg:
         st.session_state.chat.append(("You", msg))
-        st.session_state.chat.append(("Bot", "Response"))
+        st.session_state.chat.append(("Bot", "Processing..."))
 
     for s, m in st.session_state.chat:
         st.write(f"{s}: {m}")
 
-# ================== EVALUATION ==================
-st.markdown("## 📊 Evaluation")
+# ===================== TAB 4 =====================
+with tab4:
+    st.subheader("Admin Panel")
+
+    saved = pd.read_sql_query("SELECT rowid,* FROM complaints", conn)
+    st.dataframe(saved)
+
+    delete_id = st.number_input("Delete ID", 0)
+
+    if st.button("Delete"):
+        c.execute("DELETE FROM complaints WHERE rowid=?", (delete_id,))
+        conn.commit()
+        st.success("Deleted")
+
+# ===================== EVALUATION =====================
+st.markdown("## Model Evaluation")
 
 from sklearn.metrics import accuracy_score
 
-model_eval = pickle.load(open(model_files[model_choice], "rb"))
-
 X_all = vectorizer.transform(df[complaint_col])
-y = le.transform(df[category_col])
+y_true = le.transform(df[category_col])
+y_pred = model.predict(X_all)
 
-preds = model_eval.predict(X_all)
-
-acc = accuracy_score(y, preds)
+acc = accuracy_score(y_true, y_pred)
 
 st.success(f"Accuracy: {round(acc*100,2)}%")
