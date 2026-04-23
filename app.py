@@ -93,7 +93,7 @@ df.columns = df.columns.str.strip()
 complaint_col = next((c for c in df.columns if 'complaint' in c.lower()), None)
 category_col = next((c for c in df.columns if 'category' in c.lower()), None)
 
-# ✅ SAFE FIX (NO CRASH)
+# FIX CRASH
 df[complaint_col] = df[complaint_col].fillna("").astype(str)
 df[category_col] = df[category_col].fillna("").astype(str)
 
@@ -107,7 +107,16 @@ model_files = {
     "Naive Bayes": "naive_bayes_model.pkl"
 }
 
-# -------------------- TABS (SAFE ADDITION) --------------------
+# -------------------- SAFE ENSEMBLE --------------------
+def ensemble_predict(X):
+    preds = []
+    for m in model_files.values():
+        model = pickle.load(open(m, "rb"))
+        preds.append(model.predict(X))
+    preds = np.array(preds)
+    return np.apply_along_axis(lambda x: np.bincount(x).argmax(), axis=0, arr=preds)
+
+# -------------------- TABS --------------------
 tab1, tab2, tab3, tab4 = st.tabs(["🏠 Predict", "📊 Analytics", "🤖 Chatbot", "🛠 Admin"])
 
 # ================= TAB 1 =================
@@ -115,12 +124,13 @@ with tab1:
     user_input = st.text_area("Enter complaint")
 
     if user_input:
-        model = pickle.load(open(model_files[model_choice], "rb"))
-
         X_new = vectorizer.transform([user_input])
-        pred = le.inverse_transform(model.predict(X_new))[0]
 
-        st.success(f"Prediction: {pred}")
+        # ENSEMBLE prediction
+        pred_encoded = ensemble_predict(X_new)[0]
+        prediction = le.inverse_transform([pred_encoded])[0]
+
+        st.success(f"Prediction: {prediction}")
 
 # ================= TAB 2 =================
 with tab2:
@@ -129,33 +139,23 @@ with tab2:
     if not saved.empty:
         st.bar_chart(saved["category"].value_counts())
 
-    # ✅ EXPORT
+    # ADVANCED CHART
+    st.line_chart(saved["confidence"].astype(float), use_container_width=True)
+
+    # CSV EXPORT
     st.download_button("Download CSV", saved.to_csv(index=False), "data.csv")
-
-    # ✅ EVALUATION SAFE
-    try:
-        from sklearn.metrics import accuracy_score
-
-        model_eval = pickle.load(open(model_files[model_choice], "rb"))
-        X_all = vectorizer.transform(df[complaint_col].astype(str))
-        y_true = le.transform(df[category_col])
-
-        acc = accuracy_score(y_true, model_eval.predict(X_all))
-        st.success(f"Accuracy: {round(acc*100,2)}%")
-
-    except Exception as e:
-        st.warning("Evaluation error handled")
 
 # ================= TAB 3 =================
 with tab3:
     if "chat" not in st.session_state:
         st.session_state.chat = []
 
-    msg = st.text_input("Ask")
+    msg = st.text_input("Ask something")
 
     if msg:
+        response = f"I understand: {msg}"
         st.session_state.chat.append(("You", msg))
-        st.session_state.chat.append(("Bot", "Response generated"))
+        st.session_state.chat.append(("Bot", response))
 
     for s, m in st.session_state.chat:
         if s == "You":
@@ -174,3 +174,29 @@ with tab4:
         c.execute("DELETE FROM complaints WHERE rowid=?", (delete_id,))
         conn.commit()
         st.success("Deleted")
+
+# -------------------- PDF EXPORT --------------------
+st.markdown("---")
+st.markdown("### 📄 Export Report")
+
+def generate_report():
+    return df.head(20).to_csv(index=False)
+
+st.download_button("Download Sample Report", generate_report(), "report.csv")
+
+# -------------------- EVALUATION --------------------
+st.markdown("### 📊 Model Evaluation")
+
+try:
+    from sklearn.metrics import accuracy_score
+
+    X_all = vectorizer.transform(df[complaint_col])
+    y_true = le.transform(df[category_col])
+
+    preds = ensemble_predict(X_all)
+
+    acc = accuracy_score(y_true, preds)
+    st.success(f"Accuracy (Ensemble): {round(acc*100,2)}%")
+
+except:
+    st.warning("Evaluation safe-handled")
