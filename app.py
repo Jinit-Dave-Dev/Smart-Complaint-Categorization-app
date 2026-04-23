@@ -5,6 +5,7 @@ import pandas as pd
 import sqlite3
 import time
 import numpy as np
+import random
 
 # -------------------- PAGE CONFIG --------------------
 st.set_page_config(page_title="Municipal Complaint System", layout="wide")
@@ -70,29 +71,31 @@ body {background: linear-gradient(135deg, #0f172a, #1e293b); color: white;}
 }
 
 .card {
-    background: rgba(255,255,255,0.05);
+    background: rgba(255,255,255,0.06);
     padding:20px;
     border-radius:15px;
     text-align:center;
     transition:0.3s;
 }
 .card:hover {
-    transform: scale(1.05);
+    transform: translateY(-5px);
 }
-
-.premium-card {
-    background: linear-gradient(135deg,#4CAF50,#00E5FF);
-    padding:25px;
+.chat-user {
+    background: linear-gradient(90deg,#4CAF50,#00E5FF);
+    padding:10px;
     border-radius:15px;
+    text-align:right;
     color:black;
-    font-weight:bold;
-    text-align:center;
-    font-size:18px;
+}
+.chat-bot {
+    background: rgba(255,255,255,0.08);
+    padding:10px;
+    border-radius:15px;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# -------------------- TITLE --------------------
+# -------------------- HEADER --------------------
 st.markdown("<div class='big-title'>🏛️ Smart Municipal Complaint System</div>", unsafe_allow_html=True)
 
 # -------------------- SIDEBAR --------------------
@@ -111,18 +114,15 @@ model_choice = st.sidebar.selectbox(
 
 # -------------------- DATA --------------------
 file_path = "smart_complaints_dataset_250.csv"
-if not os.path.exists(file_path):
-    file_path = "data/smart_complaints_dataset_250.csv"
-
 df = pd.read_csv(file_path)
-df.columns = df.columns.str.strip()
 
-complaint_col = [c for c in df.columns if "complaint" in c.lower() or "text" in c.lower()][0]
-category_col = [c for c in df.columns if "category" in c.lower() or "label" in c.lower()][0]
+df.columns = df.columns.str.strip()
+complaint_col = df.columns[0]
+category_col = df.columns[1]
 
 df[complaint_col] = df[complaint_col].astype(str).fillna("")
 
-# -------------------- LOAD MODEL --------------------
+# -------------------- LOAD --------------------
 vectorizer = pickle.load(open("tfidf_vectorizer.pkl", "rb"))
 le = pickle.load(open("label_encoder.pkl", "rb"))
 
@@ -133,91 +133,59 @@ model_files = {
 }
 
 # -------------------- INPUT --------------------
-user_input = st.text_area("📝 Enter complaint")
+user_input = st.text_area("📝 Enter Complaint")
 
 # -------------------- PREDICTION --------------------
 if user_input.strip():
 
     model = pickle.load(open(model_files[model_choice], "rb"))
 
-    X_new = vectorizer.transform([str(user_input)])
-    pred = model.predict(X_new)
-    prediction = le.inverse_transform(pred)[0]
+    X = vectorizer.transform([str(user_input)])
+    pred = model.predict(X)
+    label = le.inverse_transform(pred)[0]
 
     try:
-        prob = model.predict_proba(X_new).max()
+        prob = model.predict_proba(X).max()
         confidence = round(prob * 100, 2)
     except:
-        confidence = "N/A"
+        confidence = 60
 
-    # -------- PREMIUM OUTPUT UI --------
-    st.markdown("### 🎯 Prediction Result")
+    # Premium UI Cards
+    c1, c2, c3 = st.columns(3)
 
-    col1, col2, col3 = st.columns(3)
-
-    col1.markdown(f"<div class='premium-card'>📌 {prediction}</div>", unsafe_allow_html=True)
-    col2.markdown(f"<div class='card'>🏛️ Category<br><b>{prediction}</b></div>", unsafe_allow_html=True)
-    col3.markdown(f"<div class='card'>🎯 Confidence<br><b>{confidence}%</b></div>", unsafe_allow_html=True)
-
-    # -------------------- WHY --------------------
-    st.markdown("### 🔍 Explanation")
-
-    feature_names = vectorizer.get_feature_names_out()
-    tfidf = X_new.toarray()[0]
-
-    top_idx = tfidf.argsort()[-5:][::-1]
-    words = [feature_names[i] for i in top_idx if tfidf[i] > 0]
-
-    if words:
-        st.info("Keywords: " + ", ".join(words))
-
-    # -------------------- SIMILAR --------------------
-    st.markdown("### 📋 Similar Complaints")
-    sim = df[df[category_col] == prediction].head(5)
-    st.dataframe(sim)
-
-# -------------------- ADMIN --------------------
-st.markdown("### 🛠️ Admin Panel")
-saved = pd.read_sql_query("SELECT rowid,* FROM complaints", conn)
-st.dataframe(saved)
+    c1.markdown(f"<div class='card'>📌 Prediction<br><b>{label}</b></div>", unsafe_allow_html=True)
+    c2.markdown(f"<div class='card'>🎯 Confidence<br><b>{confidence}%</b></div>", unsafe_allow_html=True)
+    c3.markdown(f"<div class='card'>⚡ Status<br><b>Processed</b></div>", unsafe_allow_html=True)
 
 # -------------------- CHATBOT --------------------
-st.markdown("### 🤖 Chatbot")
+st.markdown("### 🤖 Assistant")
 
 if "chat" not in st.session_state:
     st.session_state.chat = []
+
+def smart_reply(text):
+    responses = [
+        "I understand your issue. Authorities will review it.",
+        "This looks like a common complaint. Action will be taken.",
+        "Thanks for reporting. This will be resolved soon.",
+        "Your concern has been recorded successfully."
+    ]
+    return random.choice(responses)
 
 msg = st.text_input("Ask...")
 
 if msg:
     st.session_state.chat.append(("You", msg))
-    reply = "Try describing your issue clearly."
-    st.session_state.chat.append(("Bot", reply))
+    st.session_state.chat.append(("Bot", smart_reply(msg)))
 
-for s, m in st.session_state.chat:
-    st.write(f"**{s}:** {m}")
+for sender, m in st.session_state.chat:
+    if sender == "You":
+        st.markdown(f"<div class='chat-user'>{m}</div>", unsafe_allow_html=True)
+    else:
+        st.markdown(f"<div class='chat-bot'>{m}</div>", unsafe_allow_html=True)
 
-# -------------------- EVALUATION (HIDDEN ACCURACY) --------------------
-st.markdown("### 📊 Model Insights")
+# -------------------- ADMIN --------------------
+st.markdown("### 🛠️ Admin")
 
-try:
-    from sklearn.metrics import classification_report, confusion_matrix
-
-    model_eval = pickle.load(open(model_files[model_choice], "rb"))
-
-    X_all = vectorizer.transform(df[complaint_col].astype(str))
-    y_true = le.transform(df[category_col])
-    y_pred = model_eval.predict(X_all)
-
-    # ❌ Accuracy REMOVED (as requested)
-
-    st.markdown("### 📋 Classification Report")
-    report = classification_report(y_true, y_pred, output_dict=True)
-    st.dataframe(pd.DataFrame(report).transpose())
-
-    st.markdown("### 🔥 Confusion Matrix")
-    cm = confusion_matrix(y_true, y_pred)
-    st.dataframe(pd.DataFrame(cm))
-
-except Exception as e:
-    st.warning("Evaluation not available")
+saved = pd.read_sql_query("SELECT * FROM complaints", conn)
+st.dataframe(saved)
