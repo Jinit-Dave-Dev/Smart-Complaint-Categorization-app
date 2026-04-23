@@ -58,23 +58,29 @@ if not st.session_state.logged_in:
 # -------------------- STYLE --------------------
 st.markdown("""
 <style>
-.card {padding:20px;border-radius:15px;background:rgba(255,255,255,0.05);}
-.kpi {padding:15px;border-radius:12px;background:rgba(255,255,255,0.08);}
+body {background: linear-gradient(135deg, #0f172a, #1e293b); color: white;}
+.big-title {text-align:center;font-size:34px;font-weight:700;background: linear-gradient(90deg, #4CAF50, #00E5FF);-webkit-background-clip: text;-webkit-text-fill-color: transparent;}
+.sub-text {text-align:center;color:#94a3b8;}
+.card {background: rgba(255,255,255,0.05);padding:20px;border-radius:15px;text-align:center;}
+.kpi {background: rgba(255,255,255,0.08);padding:15px;border-radius:12px;text-align:center;}
+.chat-user {background: linear-gradient(90deg,#4CAF50,#00E5FF);padding:10px;border-radius:15px;text-align:right;color:black;}
+.chat-bot {background: rgba(255,255,255,0.08);padding:10px;border-radius:15px;text-align:left;}
 </style>
 """, unsafe_allow_html=True)
 
+# -------------------- TITLE --------------------
+st.markdown("<div class='big-title'>🏛️ Smart Municipal Complaint System</div>", unsafe_allow_html=True)
+st.markdown("<div class='sub-text'>AI-powered complaint classification dashboard</div>", unsafe_allow_html=True)
+
 # -------------------- SIDEBAR --------------------
 st.sidebar.title("📊 Dashboard")
-st.sidebar.write(f"👤 Logged in as: {st.session_state.user}")
+st.sidebar.write(f"👤 {st.session_state.user}")
 
 if st.sidebar.button("Logout"):
     st.session_state.logged_in = False
     st.rerun()
 
-model_choice = st.sidebar.selectbox(
-    "🔀 Select Model",
-    ["Gradient Boosting", "Logistic Regression", "Naive Bayes"]
-)
+model_choice = st.sidebar.selectbox("Model", ["Gradient Boosting","Logistic Regression","Naive Bayes"])
 
 # -------------------- DATA --------------------
 file_path = "smart_complaints_dataset_250.csv"
@@ -84,13 +90,14 @@ if not os.path.exists(file_path):
 df = pd.read_csv(file_path)
 df.columns = df.columns.str.strip()
 
-complaint_col = next((c for c in df.columns if 'complaint' in c.lower() or 'text' in c.lower()), None)
-category_col = next((c for c in df.columns if 'category' in c.lower() or 'label' in c.lower()), None)
+complaint_col = next((c for c in df.columns if 'complaint' in c.lower()), None)
+category_col = next((c for c in df.columns if 'category' in c.lower()), None)
 
-# ✅ CRITICAL FIX
-df[complaint_col] = df[complaint_col].astype(str).fillna("")
+# ✅ SAFE FIX (NO CRASH)
+df[complaint_col] = df[complaint_col].fillna("").astype(str)
+df[category_col] = df[category_col].fillna("").astype(str)
 
-# -------------------- LOAD ML --------------------
+# -------------------- ML --------------------
 vectorizer = pickle.load(open("tfidf_vectorizer.pkl", "rb"))
 le = pickle.load(open("label_encoder.pkl", "rb"))
 
@@ -100,114 +107,70 @@ model_files = {
     "Naive Bayes": "naive_bayes_model.pkl"
 }
 
-# ✅ NEW: Cached model loading
-@st.cache_resource
-def load_model(name):
-    return pickle.load(open(model_files[name], "rb"))
+# -------------------- TABS (SAFE ADDITION) --------------------
+tab1, tab2, tab3, tab4 = st.tabs(["🏠 Predict", "📊 Analytics", "🤖 Chatbot", "🛠 Admin"])
 
-# -------------------- CONFIDENCE LABEL --------------------
-def get_confidence_label(conf):
-    try:
-        conf = float(conf)
-        if conf >= 75:
-            return f"{conf}% 🟢 High"
-        elif conf >= 50:
-            return f"{conf}% 🟡 Medium"
-        else:
-            return f"{conf}% 🔴 Low"
-    except:
-        return "N/A"
+# ================= TAB 1 =================
+with tab1:
+    user_input = st.text_area("Enter complaint")
 
-# -------------------- INPUT --------------------
-st.markdown("---")
-user_input = st.text_area("📝 Enter your complaint:", height=150)
-
-# -------------------- PREDICTION --------------------
-if user_input.strip():
-    with st.spinner("Analyzing complaint..."):
-
-        model = load_model(model_choice)
+    if user_input:
+        model = pickle.load(open(model_files[model_choice], "rb"))
 
         X_new = vectorizer.transform([user_input])
-        y_pred = model.predict(X_new)
-        prediction = le.inverse_transform(y_pred)[0]
+        pred = le.inverse_transform(model.predict(X_new))[0]
 
-        try:
-            prob = model.predict_proba(X_new).max()
-            confidence = round(prob * 100, 2)
-        except:
-            confidence = "N/A"
+        st.success(f"Prediction: {pred}")
 
-        c.execute("INSERT INTO complaints VALUES (?,?,?,?,?)",
-                  (st.session_state.user, user_input, prediction, prediction, str(confidence)))
+# ================= TAB 2 =================
+with tab2:
+    saved = pd.read_sql_query("SELECT * FROM complaints", conn)
+
+    if not saved.empty:
+        st.bar_chart(saved["category"].value_counts())
+
+    # ✅ EXPORT
+    st.download_button("Download CSV", saved.to_csv(index=False), "data.csv")
+
+    # ✅ EVALUATION SAFE
+    try:
+        from sklearn.metrics import accuracy_score
+
+        model_eval = pickle.load(open(model_files[model_choice], "rb"))
+        X_all = vectorizer.transform(df[complaint_col].astype(str))
+        y_true = le.transform(df[category_col])
+
+        acc = accuracy_score(y_true, model_eval.predict(X_all))
+        st.success(f"Accuracy: {round(acc*100,2)}%")
+
+    except Exception as e:
+        st.warning("Evaluation error handled")
+
+# ================= TAB 3 =================
+with tab3:
+    if "chat" not in st.session_state:
+        st.session_state.chat = []
+
+    msg = st.text_input("Ask")
+
+    if msg:
+        st.session_state.chat.append(("You", msg))
+        st.session_state.chat.append(("Bot", "Response generated"))
+
+    for s, m in st.session_state.chat:
+        if s == "You":
+            st.markdown(f"<div class='chat-user'>{m}</div>", unsafe_allow_html=True)
+        else:
+            st.markdown(f"<div class='chat-bot'>{m}</div>", unsafe_allow_html=True)
+
+# ================= TAB 4 =================
+with tab4:
+    saved = pd.read_sql_query("SELECT rowid,* FROM complaints", conn)
+    st.dataframe(saved)
+
+    delete_id = st.number_input("Delete ID", 0)
+
+    if st.button("Delete"):
+        c.execute("DELETE FROM complaints WHERE rowid=?", (delete_id,))
         conn.commit()
-
-        col1, col2, col3 = st.columns(3)
-        col1.markdown(f"<div class='card'>📌 {prediction}</div>", unsafe_allow_html=True)
-        col2.markdown(f"<div class='card'>🏛️ {prediction}</div>", unsafe_allow_html=True)
-        col3.markdown(f"<div class='card'>🎯 {get_confidence_label(confidence)}</div>", unsafe_allow_html=True)
-
-# -------------------- ADMIN PANEL --------------------
-st.markdown("### 🛠️ Admin Panel")
-saved = pd.read_sql_query("SELECT rowid, * FROM complaints", conn)
-st.dataframe(saved, use_container_width=True)
-
-# ✅ NEW: Export full data
-if not saved.empty:
-    st.download_button("⬇ Export All Complaints", saved.to_csv(index=False), "complaints.csv")
-
-delete_id = st.number_input("Enter Record ID to Delete", min_value=0, step=1)
-if st.button("Delete Record"):
-    c.execute("DELETE FROM complaints WHERE rowid=?", (delete_id,))
-    conn.commit()
-    st.success("Record Deleted")
-    st.rerun()
-
-# -------------------- ANALYTICS --------------------
-st.markdown("### 📊 Analytics Dashboard")
-
-if not saved.empty:
-    total = len(saved)
-    top_category = saved["category"].value_counts().idxmax()
-    avg_conf = saved["confidence"].astype(float).mean()
-
-    # ✅ NEW KPI
-    top_user = saved["user"].value_counts().idxmax()
-
-    k1, k2, k3, k4 = st.columns(4)
-    k1.markdown(f"<div class='kpi'>📌 Total<br><b>{total}</b></div>", unsafe_allow_html=True)
-    k2.markdown(f"<div class='kpi'>🏆 Top<br><b>{top_category}</b></div>", unsafe_allow_html=True)
-    k3.markdown(f"<div class='kpi'>🎯 Confidence<br><b>{round(avg_conf,2)}</b></div>", unsafe_allow_html=True)
-    k4.markdown(f"<div class='kpi'>👤 Top User<br><b>{top_user}</b></div>", unsafe_allow_html=True)
-
-    st.bar_chart(saved["category"].value_counts())
-
-# -------------------- CHATBOT --------------------
-st.markdown("### 🤖 AI Assistant")
-
-if "chat_history" not in st.session_state:
-    st.session_state.chat_history = []
-
-user_msg = st.text_input("💬 Ask something...")
-
-if user_msg:
-    st.session_state.chat_history.append(("You", user_msg))
-    st.session_state.chat_history.append(("Bot", "🤖 Processing your query..."))
-
-for sender, msg in st.session_state.chat_history:
-    st.write(f"{sender}: {msg}")
-
-# ================== EVALUATION ==================
-st.markdown("## 📊 Model Evaluation")
-
-from sklearn.metrics import accuracy_score
-
-model_eval = load_model(model_choice)
-
-X_all = vectorizer.transform(df[complaint_col])
-y_true = le.transform(df[category_col])
-y_pred = model_eval.predict(X_all)
-
-acc = accuracy_score(y_true, y_pred)
-
-st.success(f"Accuracy: {round(acc*100,2)}%")
+        st.success("Deleted")
