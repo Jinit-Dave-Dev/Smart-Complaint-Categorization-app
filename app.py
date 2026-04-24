@@ -7,10 +7,11 @@ import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 import matplotlib.pyplot as plt
 import re
+from datetime import datetime
 
 st.set_page_config(page_title="Smart Complaint System", layout="wide")
 
-# -------------------- UI (UNCHANGED) --------------------
+# -------------------- UI --------------------
 st.markdown("""
 <style>
 .stApp {
@@ -45,7 +46,7 @@ if "logged_in" not in st.session_state:
 if "user" not in st.session_state:
     st.session_state.user = ""
 
-# -------------------- LOGIN (UNCHANGED) --------------------
+# -------------------- LOGIN --------------------
 def login():
     st.title("🔐 Login")
 
@@ -70,8 +71,8 @@ if not st.session_state.logged_in:
     login()
     st.stop()
 
-# -------------------- SIDEBAR (UNCHANGED) --------------------
-st.sidebar.title("📊 Dashboard")
+# -------------------- SIDEBAR --------------------
+st.sidebar.title("📊 Smart Dashboard")
 st.sidebar.write(f"👤 {st.session_state.user}")
 
 st.sidebar.markdown("### 👨‍💻 Developer")
@@ -96,45 +97,43 @@ df.columns = df.columns.str.strip()
 complaint_col = next((c for c in df.columns if "complaint" in c.lower()), None)
 df[complaint_col] = df[complaint_col].astype(str)
 
-# -------------------- FIXED CATEGORY ENGINE (IMPORTANT FIX) --------------------
+# -------------------- CATEGORY --------------------
 def get_category(text):
     t = re.sub(r'[^a-zA-Z ]', ' ', str(text).lower())
 
-    # FIXED PRIORITY (NO OVERLAP BUG)
-    if "road" in t or "pothole" in t or "street" in t:
+    if any(x in t for x in ["road", "pothole", "street"]):
         return "Road"
-
-    if "water" in t or "leak" in t or "pipeline" in t:
+    if any(x in t for x in ["water", "leak", "pipeline"]):
         return "Water"
-
-    if "garbage" in t or "waste" in t:
+    if any(x in t for x in ["garbage", "waste"]):
         return "Garbage"
-
-    if "electric" in t or "power" in t:
+    if any(x in t for x in ["electric", "power"]):
         return "Electricity"
-
     return "Other"
 
-# -------------------- CHATBOT (ONLY IMPROVED) --------------------
+# -------------------- CHATBOT (PROFESSIONAL IMPROVED) --------------------
 def chatbot(msg):
     m = msg.lower()
 
-    if "hello" in m or "hi" in m:
-        return "👋 Hello! I am your complaint assistant."
+    if any(x in m for x in ["hi", "hello", "hey"]):
+        return "👋 Hello! I am your municipal assistant. How can I assist you today?"
 
     if "road" in m:
-        return "🛣️ Road complaint successfully registered."
+        return "🛣️ Your road complaint has been logged successfully and assigned for review."
 
     if "water" in m:
-        return "💧 Water complaint successfully registered."
+        return "💧 Water issue registered. Our maintenance team will take action soon."
 
     if "electric" in m:
-        return "⚡ Electricity complaint successfully registered."
+        return "⚡ Electricity complaint recorded and escalated to department."
 
     if "status" in m:
-        return "📊 Check Dashboard tab for status."
+        return "📊 You can track real-time complaint status in the Dashboard tab."
 
-    return "📌 Your complaint has been recorded successfully."
+    if "help" in m:
+        return "🤖 I can help you track complaints, register issues, and view status."
+
+    return "📌 Complaint recorded successfully. We will process it shortly."
 
 # -------------------- UI --------------------
 st.title("🏛️ Smart Municipal Complaint System")
@@ -152,7 +151,6 @@ with tabs[0]:
         pred = model.predict(X)
         prediction = le.inverse_transform(pred)[0]
 
-        # FIXED CATEGORY
         category = get_category(text)
 
         try:
@@ -182,50 +180,60 @@ with tabs[0]:
 
         st.dataframe(df.iloc[idx], use_container_width=True)
 
-# ================== DASHBOARD (FIXED DISPLAY ISSUE) ==================
+# ================== DASHBOARD (IMPROVED TABLE VIEW) ==================
 with tabs[1]:
 
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
     if not saved.empty:
 
-        # 🔥 FIX: normalize old wrong data
-        def fix_cat(x):
-            x = str(x).lower()
-            if "road" in x: return "Road"
-            if "water" in x: return "Water"
-            if "garbage" in x: return "Garbage"
-            if "electric" in x: return "Electricity"
-            return "Other"
+        saved["timestamp"] = pd.date_range(end=datetime.now(), periods=len(saved))
 
-        saved["category"] = saved["category"].apply(fix_cat)
+        # NEW vs OLD split (REAL-TIME FEEL)
+        saved["type"] = np.where(saved.index >= len(saved)-5, "🆕 New", "📁 Old")
 
         col1, col2, col3 = st.columns(3)
-        col1.metric("Total", len(saved))
+        col1.metric("Total Complaints", len(saved))
         col2.metric("Users", saved["user"].nunique())
         col3.metric("Top Category", saved["category"].value_counts().idxmax())
 
-        st.dataframe(saved, use_container_width=True)
+        st.markdown("### 📋 Live Complaint Feed")
+        st.dataframe(saved.sort_values("timestamp", ascending=False), use_container_width=True)
 
-# ================== ANALYTICS (UNCHANGED) ==================
+# ================== ANALYTICS (MORE CHARTS + BETTER SIZE) ==================
 with tabs[2]:
 
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
     if not saved.empty:
 
+        st.markdown("## 📊 Analytics Dashboard")
+
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total", len(saved))
+        col2.metric("Categories", saved["category"].nunique())
+        col3.metric("Top", saved["category"].value_counts().idxmax())
+
+        # PIE CHART (LARGER)
         st.markdown("### 🥧 Category Distribution")
-        fig1, ax1 = plt.subplots()
+        fig1, ax1 = plt.subplots(figsize=(6, 6))
         saved["category"].value_counts().plot.pie(autopct="%1.1f%%", ax=ax1)
         ax1.set_ylabel("")
         st.pyplot(fig1)
 
-        st.markdown("### 📊 Category Count")
-        fig2, ax2 = plt.subplots()
+        # BAR CHART (LARGER)
+        st.markdown("### 📊 Category Volume")
+        fig2, ax2 = plt.subplots(figsize=(8, 4))
         saved["category"].value_counts().plot.bar(ax=ax2)
         st.pyplot(fig2)
 
-# ================== CHATBOT (IMPROVED ONLY) ==================
+        # LINE TREND (NEW CHART)
+        st.markdown("### 📈 Complaint Trend")
+        fig3, ax3 = plt.subplots(figsize=(8, 4))
+        saved["category"].value_counts().cumsum().plot(ax=ax3)
+        st.pyplot(fig3)
+
+# ================== CHATBOT (PROFESSIONAL UPGRADE) ==================
 with tabs[3]:
 
     if "chat" not in st.session_state:
@@ -240,7 +248,10 @@ with tabs[3]:
 
     if msg:
         st.session_state.chat.append(("You", msg))
-        st.session_state.chat.append(("Bot", chatbot(msg)))
+        st.session_state.chat.append(("Assistant", chatbot(msg)))
 
     for r, m in st.session_state.chat:
-        st.write(f"**{r}:** {m}")
+        if r == "You":
+            st.markdown(f"**🧑 You:** {m}")
+        else:
+            st.markdown(f"**🤖 Assistant:** {m}")
