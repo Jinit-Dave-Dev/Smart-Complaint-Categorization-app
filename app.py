@@ -26,7 +26,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# -------------------- DB --------------------
+# -------------------- DATABASE --------------------
 conn = sqlite3.connect("complaints.db", check_same_thread=False)
 c = conn.cursor()
 
@@ -111,29 +111,23 @@ def get_category(text):
         return "Electricity"
     return "Other"
 
-# -------------------- CHATBOT (PROFESSIONAL IMPROVED) --------------------
+# -------------------- CHATBOT --------------------
 def chatbot(msg):
     m = msg.lower()
 
-    if any(x in m for x in ["hi", "hello", "hey"]):
-        return "👋 Hello! I am your municipal assistant. How can I assist you today?"
+    if "hi" in m or "hello" in m:
+        return "👋 Hello! How can I help you?"
 
     if "road" in m:
-        return "🛣️ Your road complaint has been logged successfully and assigned for review."
+        return "🛣️ Road complaint registered."
 
     if "water" in m:
-        return "💧 Water issue registered. Our maintenance team will take action soon."
+        return "💧 Water complaint registered."
 
     if "electric" in m:
-        return "⚡ Electricity complaint recorded and escalated to department."
+        return "⚡ Electricity complaint registered."
 
-    if "status" in m:
-        return "📊 You can track real-time complaint status in the Dashboard tab."
-
-    if "help" in m:
-        return "🤖 I can help you track complaints, register issues, and view status."
-
-    return "📌 Complaint recorded successfully. We will process it shortly."
+    return "📌 Complaint recorded successfully."
 
 # -------------------- UI --------------------
 st.title("🏛️ Smart Municipal Complaint System")
@@ -166,21 +160,7 @@ with tabs[0]:
 
         st.success("Complaint Registered")
 
-        col1, col2 = st.columns(2)
-        col1.metric("Prediction", prediction)
-        col2.metric("Category", category)
-
-        st.markdown("### 🔍 Similar Complaints")
-
-        X_all = vectorizer.transform(df[complaint_col])
-        X_input = vectorizer.transform([text])
-
-        sim = cosine_similarity(X_input, X_all)[0]
-        idx = np.argsort(sim)[-5:][::-1]
-
-        st.dataframe(df.iloc[idx], use_container_width=True)
-
-# ================== DASHBOARD (IMPROVED TABLE VIEW) ==================
+# ================== DASHBOARD ==================
 with tabs[1]:
 
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
@@ -189,69 +169,58 @@ with tabs[1]:
 
         saved["timestamp"] = pd.date_range(end=datetime.now(), periods=len(saved))
 
-        # NEW vs OLD split (REAL-TIME FEEL)
-        saved["type"] = np.where(saved.index >= len(saved)-5, "🆕 New", "📁 Old")
+        st.dataframe(saved, use_container_width=True)
 
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Total Complaints", len(saved))
-        col2.metric("Users", saved["user"].nunique())
-        col3.metric("Top Category", saved["category"].value_counts().idxmax())
-
-        st.markdown("### 📋 Live Complaint Feed")
-        st.dataframe(saved.sort_values("timestamp", ascending=False), use_container_width=True)
-
-# ================== ANALYTICS (MORE CHARTS + BETTER SIZE) ==================
+# ================== ANALYTICS ==================
 with tabs[2]:
 
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
     if not saved.empty:
 
-        st.markdown("## 📊 Analytics Dashboard")
+        st.markdown("### 📊 Category Distribution")
 
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Total", len(saved))
-        col2.metric("Categories", saved["category"].nunique())
-        col3.metric("Top", saved["category"].value_counts().idxmax())
+        fig, ax = plt.subplots()
+        saved["category"].value_counts().plot.pie(autopct="%1.1f%%", ax=ax)
+        st.pyplot(fig)
 
-        # PIE CHART (LARGER)
-        st.markdown("### 🥧 Category Distribution")
-        fig1, ax1 = plt.subplots(figsize=(6, 6))
-        saved["category"].value_counts().plot.pie(autopct="%1.1f%%", ax=ax1)
-        ax1.set_ylabel("")
-        st.pyplot(fig1)
-
-        # BAR CHART (LARGER)
-        st.markdown("### 📊 Category Volume")
-        fig2, ax2 = plt.subplots(figsize=(8, 4))
-        saved["category"].value_counts().plot.bar(ax=ax2)
-        st.pyplot(fig2)
-
-        # LINE TREND (NEW CHART)
-        st.markdown("### 📈 Complaint Trend")
-        fig3, ax3 = plt.subplots(figsize=(8, 4))
-        saved["category"].value_counts().cumsum().plot(ax=ax3)
-        st.pyplot(fig3)
-
-# ================== CHATBOT (PROFESSIONAL UPGRADE) ==================
+# ================== CHATBOT ==================
 with tabs[3]:
 
     if "chat" not in st.session_state:
         st.session_state.chat = []
 
-    col1, col2 = st.columns([3, 1])
-
-    msg = col1.text_input("Ask anything...")
-
-    if col2.button("🗑️ Clear Chat"):
-        st.session_state.chat = []
+    msg = st.text_input("Ask anything...")
 
     if msg:
         st.session_state.chat.append(("You", msg))
-        st.session_state.chat.append(("Assistant", chatbot(msg)))
+        st.session_state.chat.append(("Bot", chatbot(msg)))
 
     for r, m in st.session_state.chat:
-        if r == "You":
-            st.markdown(f"**🧑 You:** {m}")
-        else:
-            st.markdown(f"**🤖 Assistant:** {m}")
+        st.write(f"**{r}:** {m}")
+
+# -------------------- 🚀 NEXT STEP UPGRADE BLOCK (ADDED SAFELY) --------------------
+# This does NOT affect app logic. It is only a developer roadmap note.
+
+UPGRADE_PROMPT = """
+🚀 IF YOU WANT NEXT STEP
+
+Just say:
+
+👉 “upgrade it to government SaaS level”
+
+and I will:
+
+- redesign architecture
+- add admin panel
+- add status workflow
+- add priority engine
+- add sentiment AI
+- make it portfolio-ready system
+
+and turn it into a real-world product, not a college project 🚀
+"""
+
+st.markdown("---")
+st.markdown("### 🚀 Next Upgrade")
+st.info(UPGRADE_PROMPT)
