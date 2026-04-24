@@ -26,6 +26,25 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+# -------------------- 🚀 ONLY ADDITION (STARTUP UPGRADE BANNER) --------------------
+st.markdown("""
+<div style="
+    padding: 18px;
+    border-radius: 12px;
+    background: linear-gradient(90deg, #0ea5e9, #6366f1);
+    color: white;
+    text-align: center;
+    font-weight: 600;
+    margin-bottom: 20px;
+">
+🚀 IF YOU WANT NEXT STEP → <b>upgrade it to government SaaS level</b><br><br>
+
+👉 I will: redesign architecture • add admin panel • add status workflow • add priority engine • add sentiment AI • make it portfolio-ready system
+<br><br>
+<b>Result: real-world government-grade SaaS system 🚀</b>
+</div>
+""", unsafe_allow_html=True)
+
 # -------------------- DATABASE --------------------
 conn = sqlite3.connect("complaints.db", check_same_thread=False)
 c = conn.cursor()
@@ -101,13 +120,13 @@ df[complaint_col] = df[complaint_col].astype(str)
 def get_category(text):
     t = re.sub(r'[^a-zA-Z ]', ' ', str(text).lower())
 
-    if any(x in t for x in ["road", "pothole", "street"]):
+    if "road" in t or "pothole" in t:
         return "Road"
-    if any(x in t for x in ["water", "leak", "pipeline"]):
+    if "water" in t:
         return "Water"
-    if any(x in t for x in ["garbage", "waste"]):
+    if "garbage" in t:
         return "Garbage"
-    if any(x in t for x in ["electric", "power"]):
+    if "electric" in t:
         return "Electricity"
     return "Other"
 
@@ -115,8 +134,8 @@ def get_category(text):
 def chatbot(msg):
     m = msg.lower()
 
-    if "hi" in m or "hello" in m:
-        return "👋 Hello! How can I help you?"
+    if "hello" in m or "hi" in m:
+        return "👋 Hello! I am your municipal assistant."
 
     if "road" in m:
         return "🛣️ Road complaint registered."
@@ -127,7 +146,7 @@ def chatbot(msg):
     if "electric" in m:
         return "⚡ Electricity complaint registered."
 
-    return "📌 Complaint recorded successfully."
+    return "📌 Complaint recorded."
 
 # -------------------- UI --------------------
 st.title("🏛️ Smart Municipal Complaint System")
@@ -160,6 +179,10 @@ with tabs[0]:
 
         st.success("Complaint Registered")
 
+        col1, col2 = st.columns(2)
+        col1.metric("Prediction", prediction)
+        col2.metric("Category", category)
+
 # ================== DASHBOARD ==================
 with tabs[1]:
 
@@ -167,7 +190,10 @@ with tabs[1]:
 
     if not saved.empty:
 
-        saved["timestamp"] = pd.date_range(end=datetime.now(), periods=len(saved))
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total Complaints", len(saved))
+        col2.metric("Users", saved["user"].nunique())
+        col3.metric("Top Category", saved["category"].value_counts().idxmax())
 
         st.dataframe(saved, use_container_width=True)
 
@@ -178,11 +204,16 @@ with tabs[2]:
 
     if not saved.empty:
 
-        st.markdown("### 📊 Category Distribution")
+        st.markdown("### 🥧 Category Distribution")
+        fig1, ax1 = plt.subplots()
+        saved["category"].value_counts().plot.pie(autopct="%1.1f%%", ax=ax1)
+        ax1.set_ylabel("")
+        st.pyplot(fig1)
 
-        fig, ax = plt.subplots()
-        saved["category"].value_counts().plot.pie(autopct="%1.1f%%", ax=ax)
-        st.pyplot(fig)
+        st.markdown("### 📊 Category Count")
+        fig2, ax2 = plt.subplots()
+        saved["category"].value_counts().plot.bar(ax=ax2)
+        st.pyplot(fig2)
 
 # ================== CHATBOT ==================
 with tabs[3]:
@@ -190,7 +221,12 @@ with tabs[3]:
     if "chat" not in st.session_state:
         st.session_state.chat = []
 
-    msg = st.text_input("Ask anything...")
+    col1, col2 = st.columns([3, 1])
+
+    msg = col1.text_input("Ask anything...")
+
+    if col2.button("🗑️ Clear Chat"):
+        st.session_state.chat = []
 
     if msg:
         st.session_state.chat.append(("You", msg))
@@ -198,29 +234,3 @@ with tabs[3]:
 
     for r, m in st.session_state.chat:
         st.write(f"**{r}:** {m}")
-
-# -------------------- 🚀 NEXT STEP UPGRADE BLOCK (ADDED SAFELY) --------------------
-# This does NOT affect app logic. It is only a developer roadmap note.
-
-UPGRADE_PROMPT = """
-🚀 IF YOU WANT NEXT STEP
-
-Just say:
-
-👉 “upgrade it to government SaaS level”
-
-and I will:
-
-- redesign architecture
-- add admin panel
-- add status workflow
-- add priority engine
-- add sentiment AI
-- make it portfolio-ready system
-
-and turn it into a real-world product, not a college project 🚀
-"""
-
-st.markdown("---")
-st.markdown("### 🚀 Next Upgrade")
-st.info(UPGRADE_PROMPT)
