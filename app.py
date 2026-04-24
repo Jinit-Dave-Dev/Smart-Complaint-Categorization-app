@@ -97,40 +97,45 @@ df.columns = df.columns.str.strip()
 complaint_col = next((c for c in df.columns if "complaint" in c.lower()), None)
 df[complaint_col] = df[complaint_col].astype(str)
 
-# -------------------- CATEGORY --------------------
+# -------------------- FIXED CATEGORY ENGINE (IMPORTANT FIX ONLY) --------------------
 def get_category(text):
     t = re.sub(r'[^a-zA-Z ]', ' ', str(text).lower())
 
-    if "road" in t or "pothole" in t:
+    # STRICT PRIORITY (fixes road/water confusion)
+    if any(x in t for x in ["road", "pothole", "street", "highway"]):
         return "Road"
-    if "water" in t:
+
+    if any(x in t for x in ["water", "pipeline", "leak", "drain"]):
         return "Water"
-    if "garbage" in t:
+
+    if any(x in t for x in ["garbage", "waste", "trash"]):
         return "Garbage"
-    if "electric" in t:
+
+    if any(x in t for x in ["electric", "power", "light"]):
         return "Electricity"
+
     return "Other"
 
-# -------------------- CHATBOT --------------------
+# -------------------- IMPROVED CHATBOT (ONLY UPGRADE, NO STRUCTURE CHANGE) --------------------
 def chatbot(msg):
     m = msg.lower()
 
-    if "hello" in m or "hi" in m:
-        return "Hello! How can I help you?"
+    if any(x in m for x in ["hi", "hello", "hey"]):
+        return "👋 Hello! I am your municipal complaint assistant."
 
     if "road" in m:
-        return "Road complaint registered."
+        return "🛣️ Your road complaint has been recorded and forwarded to PWD department."
 
     if "water" in m:
-        return "Water complaint registered."
+        return "💧 Water issue logged. Municipal water department will take action."
 
     if "electric" in m:
-        return "Electricity complaint registered."
+        return "⚡ Electricity complaint registered and escalated."
 
     if "status" in m:
-        return "Check dashboard for status."
+        return "📊 You can track complaint status in Dashboard tab."
 
-    return "Complaint recorded successfully."
+    return "📌 Complaint registered successfully. Our team will review it."
 
 # -------------------- UI --------------------
 st.title("🏛️ Smart Municipal Complaint System")
