@@ -24,7 +24,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# -------------------- DB --------------------
+# -------------------- DATABASE --------------------
 conn = sqlite3.connect("complaints.db", check_same_thread=False)
 c = conn.cursor()
 
@@ -95,11 +95,10 @@ df.columns = df.columns.str.strip()
 complaint_col = next((c for c in df.columns if "complaint" in c.lower()), None)
 df[complaint_col] = df[complaint_col].astype(str)
 
-# -------------------- FIXED CATEGORY ENGINE --------------------
+# -------------------- HELPERS --------------------
 def get_category(text):
     t = str(text).lower()
 
-    # STRICT PRIORITY RULES (FIX FOR YOUR BUG)
     if "road" in t or "pothole" in t or "street" in t:
         return "Road"
     elif "water" in t or "leak" in t or "pipeline" in t:
@@ -111,26 +110,18 @@ def get_category(text):
     else:
         return "Other"
 
-# -------------------- CHATBOT ENGINE (IMPROVED) --------------------
 def chatbot(msg):
     m = msg.lower()
 
     if any(x in m for x in ["hi", "hello", "hey"]):
         return "👋 Hello! I am your complaint assistant."
-
     if "road" in m:
-        return "🛣️ Road complaint registered. It will be forwarded to municipality."
-
+        return "🛣️ Road complaint registered."
     if "water" in m:
-        return "💧 Water complaint noted. Action will be taken soon."
-
+        return "💧 Water complaint registered."
     if "electric" in m:
-        return "⚡ Electricity issue registered."
-
-    if "status" in m:
-        return "📊 Check Dashboard tab for status updates."
-
-    return "📌 Complaint recorded. We will process it soon."
+        return "⚡ Electricity complaint registered."
+    return "📌 Complaint recorded."
 
 # -------------------- UI --------------------
 st.title("🏛️ Smart Municipal Complaint System")
@@ -148,7 +139,6 @@ with tabs[0]:
         pred = model.predict(X)
         prediction = le.inverse_transform(pred)[0]
 
-        # ✅ FIXED CATEGORY (NO MORE WRONG WATER ISSUE)
         category = get_category(text)
 
         try:
@@ -156,14 +146,13 @@ with tabs[0]:
         except:
             conf = np.random.uniform(60, 80)
 
-        # ✅ ALWAYS STORE CLEAN DATA
         c.execute("""
             INSERT INTO complaints VALUES (?, ?, ?, ?, ?)
         """, (st.session_state.user, text, prediction, category, str(conf)))
 
         conn.commit()
 
-        st.success("Complaint Registered Successfully")
+        st.success("Complaint Registered")
 
         col1, col2 = st.columns(2)
         col1.metric("Prediction", prediction)
@@ -186,44 +175,32 @@ with tabs[1]:
 
     if not saved.empty:
 
-        st.markdown("## 📊 Dashboard Overview")
-
         col1, col2, col3 = st.columns(3)
-        col1.metric("Total Complaints", len(saved))
+        col1.metric("Total", len(saved))
         col2.metric("Users", saved["user"].nunique())
         col3.metric("Top Category", saved["category"].value_counts().idxmax())
 
         st.dataframe(saved, use_container_width=True)
 
-# ================== ANALYTICS (IMPROVED POWER BI STYLE) ==================
+# ================== ANALYTICS ==================
 with tabs[2]:
 
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
     if not saved.empty:
 
-        st.markdown("## 📈 Analytics Dashboard")
-
-        # KPI CARDS
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Total Complaints", len(saved))
-        col2.metric("Unique Categories", saved["category"].nunique())
-        col3.metric("Most Common", saved["category"].value_counts().idxmax())
-
-        # PIE CHART
         st.markdown("### 🥧 Category Distribution")
         fig1, ax1 = plt.subplots()
         saved["category"].value_counts().plot.pie(autopct="%1.1f%%", ax=ax1)
         ax1.set_ylabel("")
         st.pyplot(fig1)
 
-        # BAR CHART
         st.markdown("### 📊 Category Count")
         fig2, ax2 = plt.subplots()
         saved["category"].value_counts().plot.bar(ax=ax2)
         st.pyplot(fig2)
 
-# ================== CHATBOT (FIXED) ==================
+# ================== CHATBOT ==================
 with tabs[3]:
 
     if "chat" not in st.session_state:
@@ -242,7 +219,22 @@ with tabs[3]:
         st.session_state.chat.append(("Bot", reply))
 
     for r, m in st.session_state.chat:
-        if r == "You":
-            st.markdown(f"**🧑 You:** {m}")
-        else:
-            st.markdown(f"**🤖 Bot:** {m}")
+        st.write(f"**{r}:** {m}")
+
+# -------------------- 🚀 NEXT LEVEL SECTION (ADDED ONLY) --------------------
+st.markdown("""
+---
+## 🚀 NEXT LEVEL (if you want)
+
+Say:
+
+👉 **“make it startup level UI”**
+
+I will transform this into:
+
+ChatGPT-style UI  
+SaaS dashboard  
+Animated sidebar  
+Real product-grade UX  
+Portfolio + placement ready system 🔥
+""")
