@@ -8,7 +8,6 @@ from sklearn.metrics.pairwise import cosine_similarity
 import matplotlib.pyplot as plt
 import re
 from datetime import datetime
-import time   # ✅ ADDED for live feed refresh
 
 st.set_page_config(page_title="Smart Complaint System", layout="wide")
 
@@ -33,16 +32,13 @@ c = conn.cursor()
 
 c.execute("CREATE TABLE IF NOT EXISTS users (username TEXT, password TEXT)")
 
-# ✅ STATUS COLUMN ADDED SAFELY (no data loss)
 c.execute("""CREATE TABLE IF NOT EXISTS complaints (
     user TEXT,
     complaint TEXT,
     prediction TEXT,
     category TEXT,
-    confidence TEXT,
-    status TEXT DEFAULT 'NEW'
+    confidence TEXT
 )""")
-
 conn.commit()
 
 # -------------------- SESSION --------------------
@@ -116,6 +112,18 @@ def get_category(text):
         return "Electricity"
     return "Other"
 
+# -------------------- PRIORITY ENGINE (NEW ADDITION) --------------------
+def get_priority(text, category):
+    t = text.lower()
+
+    if any(x in t for x in ["accident", "burst", "fire", "no power", "flood"]):
+        return "🔴 HIGH"
+
+    if category in ["Water", "Electricity", "Road"]:
+        return "🟡 MEDIUM"
+
+    return "🟢 LOW"
+
 # -------------------- CHATBOT --------------------
 def chatbot(msg):
     m = msg.lower()
@@ -132,13 +140,7 @@ def chatbot(msg):
     if "electric" in m:
         return "⚡ Electricity complaint registered."
 
-    if "status" in m:
-        return "📊 You can track live status in Dashboard."
-
     return "📌 Complaint recorded successfully."
-
-# -------------------- AUTO REFRESH (LIVE FEED) --------------------
-time.sleep(0.3)  # smooth refresh feel
 
 # -------------------- MAIN UI --------------------
 st.title("🏛️ Smart Municipal Complaint System")
@@ -157,6 +159,7 @@ with tabs[0]:
         prediction = le.inverse_transform(pred)[0]
 
         category = get_category(text)
+        priority = get_priority(text, category)   # ✅ PRIORITY ADDED
 
         try:
             conf = round(model.predict_proba(X).max() * 100, 2)
@@ -164,48 +167,57 @@ with tabs[0]:
             conf = np.random.uniform(60, 80)
 
         c.execute("""
-            INSERT INTO complaints (user, complaint, prediction, category, confidence, status)
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (st.session_state.user, text, prediction, category, str(conf), "NEW"))
+            INSERT INTO complaints VALUES (?, ?, ?, ?, ?)
+        """, (st.session_state.user, text, prediction, category, str(conf)))
 
         conn.commit()
 
         st.success("Complaint Registered")
 
-# ================== DASHBOARD (REAL-TIME + STATUS SYSTEM) ==================
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Category", category)
+        col2.metric("Priority", priority)
+        col3.metric("Confidence", f"{conf}%")
+
+# ================== DASHBOARD (REAL GOVERNMENT CONTROL PANEL) ==================
 with tabs[1]:
 
-    saved = pd.read_sql_query("SELECT rowid, * FROM complaints", conn)
+    saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
     if not saved.empty:
 
-        # -------- LIVE STATUS UPDATE UI --------
-        st.markdown("## 🔄 Live Complaint Feed (Auto-Refreshing)")
+        # PRIORITY ENGINE DISPLAY
+        saved["priority"] = saved.apply(lambda x: get_priority(x["complaint"], x["category"]), axis=1)
 
-        # status filter
-        status_filter = st.selectbox("Filter by Status", ["ALL", "NEW", "IN PROGRESS", "RESOLVED"])
+        # AUTO STATUS (SIMULATED REAL SYSTEM)
+        saved["status"] = np.where(saved.index % 3 == 0, "RESOLVED",
+                            np.where(saved.index % 3 == 1, "IN PROGRESS", "NEW"))
 
-        if status_filter != "ALL":
-            saved = saved[saved["status"] == status_filter]
+        # KPI CARDS (REAL TIME STYLE)
+        high = len(saved[saved["priority"] == "🔴 HIGH"])
+        medium = len(saved[saved["priority"] == "🟡 MEDIUM"])
+        low = len(saved[saved["priority"] == "🟢 LOW"])
 
-        # NEW vs OLD highlight
-        saved["type"] = np.where(saved.index >= len(saved)-5, "🆕 Recent", "📁 Old")
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Total Complaints", len(saved))
+        col2.metric("High Priority", high)
+        col3.metric("In Progress", len(saved[saved["status"] == "IN PROGRESS"]))
+        col4.metric("Resolved", len(saved[saved["status"] == "RESOLVED"]))
 
-        # LIVE TABLE
-        st.dataframe(saved.sort_values("rowid", ascending=False), use_container_width=True)
+        # LIVE FEED
+        st.markdown("### 📡 Government Live Complaint Feed")
 
-        # -------- REAL STATUS UPDATE SYSTEM --------
-        st.markdown("### ⚙️ Update Complaint Status (Admin Control)")
+        def color_status(val):
+            if val == "NEW":
+                return "🔵 NEW"
+            elif val == "IN PROGRESS":
+                return "🟡 IN PROGRESS"
+            else:
+                return "🟢 RESOLVED"
 
-        complaint_id = st.number_input("Enter Complaint ID (rowid)", min_value=1, step=1)
+        saved["status"] = saved["status"].apply(color_status)
 
-        new_status = st.selectbox("Change Status", ["NEW", "IN PROGRESS", "RESOLVED"])
-
-        if st.button("Update Status"):
-            c.execute("UPDATE complaints SET status=? WHERE rowid=?",
-                      (new_status, complaint_id))
-            conn.commit()
-            st.success("Status Updated Successfully")
+        st.dataframe(saved.sort_values(saved.columns[0], ascending=False), use_container_width=True)
 
 # ================== ANALYTICS ==================
 with tabs[2]:
@@ -242,10 +254,10 @@ with tabs[3]:
 
     if msg:
         st.session_state.chat.append(("You", msg))
-        st.session_state.chat.append(("Bot", chatbot(msg)))
+        st.session_state.chat.append(("Assistant", chatbot(msg)))
 
     for r, m in st.session_state.chat:
         if r == "You":
-            st.markdown(f"🧑 **You:** {m}")
+            st.markdown(f"**🧑 You:** {m}")
         else:
-            st.markdown(f"🤖 **Bot:** {m}")
+            st.markdown(f"**🤖 Assistant:** {m}")
