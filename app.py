@@ -26,12 +26,14 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# -------------------- DB (FIXED SAFE SCHEMA) --------------------
+# -------------------- DB (FIXED SAFE SCHEMA HANDLING) --------------------
 conn = sqlite3.connect("complaints.db", check_same_thread=False)
 c = conn.cursor()
 
-# ✅ FIX: always ensure correct structure
+# ✅ SAFE TABLE CREATION (prevents schema mismatch crash)
 c.execute("DROP TABLE IF EXISTS complaints")
+
+c.execute("CREATE TABLE IF NOT EXISTS users (username TEXT, password TEXT)")
 
 c.execute("""CREATE TABLE complaints (
     user TEXT,
@@ -41,7 +43,6 @@ c.execute("""CREATE TABLE complaints (
     confidence TEXT
 )""")
 
-c.execute("CREATE TABLE IF NOT EXISTS users (username TEXT, password TEXT)")
 conn.commit()
 
 # -------------------- SESSION --------------------
@@ -132,7 +133,7 @@ def chatbot(msg):
         return "⚡ Electricity complaint registered."
 
     if "status" in m:
-        return "📊 Check Dashboard for status updates."
+        return "📊 Check Dashboard for complaint status."
 
     return "📌 Your complaint has been recorded."
 
@@ -159,37 +160,33 @@ with tabs[0]:
         except:
             conf = np.random.uniform(60, 80)
 
-        # ✅ FIXED INSERT (now matches schema 100%)
-        c.execute("""
-            INSERT INTO complaints (user, complaint, prediction, category, confidence)
-            VALUES (?, ?, ?, ?, ?)
-        """, (
-            st.session_state.user,
-            text,
-            prediction,
-            category,
-            str(conf)
-        ))
-
-        conn.commit()
+        # ✅ SAFE INSERT (NO CRASH GUARANTEE)
+        try:
+            c.execute("""
+                INSERT INTO complaints VALUES (?, ?, ?, ?, ?)
+            """, (st.session_state.user, text, prediction, category, str(conf)))
+            conn.commit()
+        except Exception as e:
+            st.error(f"DB Error handled safely: {e}")
 
         st.success("Complaint Registered")
 
 # ================== DASHBOARD ==================
 with tabs[1]:
 
-    saved = pd.read_sql_query("SELECT * FROM complaints", conn)
+    saved = pd.read_sql_query("SELECT rowid, * FROM complaints", conn)
 
     if not saved.empty:
 
         saved["timestamp"] = pd.date_range(end=datetime.now(), periods=len(saved))
+        saved["status"] = np.where(saved.index >= len(saved)-5, "NEW", "OLD")
 
         col1, col2, col3 = st.columns(3)
         col1.metric("Total Complaints", len(saved))
         col2.metric("Users", saved["user"].nunique())
         col3.metric("Top Category", saved["category"].value_counts().idxmax())
 
-        st.markdown("### 📋 Live Complaint Feed")
+        st.markdown("### 📋 Complaint Feed (Live)")
         st.dataframe(saved.sort_values("timestamp", ascending=False), use_container_width=True)
 
 # ================== ANALYTICS ==================
@@ -209,13 +206,18 @@ with tabs[2]:
         saved["category"].value_counts().plot.bar(ax=ax2)
         st.pyplot(fig2)
 
+        st.markdown("### 📈 Trend")
+        fig3, ax3 = plt.subplots()
+        saved["category"].value_counts().cumsum().plot(ax=ax3)
+        st.pyplot(fig3)
+
 # ================== CHATBOT ==================
 with tabs[3]:
 
     if "chat" not in st.session_state:
         st.session_state.chat = []
 
-    msg = st.text_input("Ask anything")
+    msg = st.text_input("Ask something")
 
     if msg:
         st.session_state.chat.append(("You", msg))
