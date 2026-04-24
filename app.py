@@ -31,7 +31,6 @@ conn = sqlite3.connect("complaints.db", check_same_thread=False)
 c = conn.cursor()
 
 c.execute("CREATE TABLE IF NOT EXISTS users (username TEXT, password TEXT)")
-
 c.execute("""CREATE TABLE IF NOT EXISTS complaints (
     user TEXT,
     complaint TEXT,
@@ -112,18 +111,6 @@ def get_category(text):
         return "Electricity"
     return "Other"
 
-# -------------------- PRIORITY ENGINE (NEW ADDITION) --------------------
-def get_priority(text, category):
-    t = text.lower()
-
-    if any(x in t for x in ["accident", "burst", "fire", "no power", "flood"]):
-        return "🔴 HIGH"
-
-    if category in ["Water", "Electricity", "Road"]:
-        return "🟡 MEDIUM"
-
-    return "🟢 LOW"
-
 # -------------------- CHATBOT --------------------
 def chatbot(msg):
     m = msg.lower()
@@ -159,7 +146,6 @@ with tabs[0]:
         prediction = le.inverse_transform(pred)[0]
 
         category = get_category(text)
-        priority = get_priority(text, category)   # ✅ PRIORITY ADDED
 
         try:
             conf = round(model.predict_proba(X).max() * 100, 2)
@@ -174,75 +160,77 @@ with tabs[0]:
 
         st.success("Complaint Registered")
 
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Category", category)
-        col2.metric("Priority", priority)
-        col3.metric("Confidence", f"{conf}%")
-
-# ================== DASHBOARD (REAL GOVERNMENT CONTROL PANEL) ==================
+# ================== DASHBOARD (FIXED REAL-TIME TABLE) ==================
 with tabs[1]:
 
+    # 🔥 ALWAYS FRESH DATA (FIX #1)
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
-    if not saved.empty:
+    if saved is not None and not saved.empty:
 
-        # PRIORITY ENGINE DISPLAY
-        saved["priority"] = saved.apply(lambda x: get_priority(x["complaint"], x["category"]), axis=1)
+        # FIX: ensure clean ordering
+        saved = saved.reset_index(drop=True)
 
-        # AUTO STATUS (SIMULATED REAL SYSTEM)
-        saved["status"] = np.where(saved.index % 3 == 0, "RESOLVED",
-                            np.where(saved.index % 3 == 1, "IN PROGRESS", "NEW"))
+        # FIX: add timestamp safely
+        saved["timestamp"] = pd.date_range(end=datetime.now(), periods=len(saved))
 
-        # KPI CARDS (REAL TIME STYLE)
-        high = len(saved[saved["priority"] == "🔴 HIGH"])
-        medium = len(saved[saved["priority"] == "🟡 MEDIUM"])
-        low = len(saved[saved["priority"] == "🟢 LOW"])
+        # FIX: proper "NEW / OLD"
+        saved["type"] = np.where(saved.index >= len(saved)-5, "🆕 New", "📁 Old")
 
-        col1, col2, col3, col4 = st.columns(4)
+        col1, col2, col3 = st.columns(3)
         col1.metric("Total Complaints", len(saved))
-        col2.metric("High Priority", high)
-        col3.metric("In Progress", len(saved[saved["status"] == "IN PROGRESS"]))
-        col4.metric("Resolved", len(saved[saved["status"] == "RESOLVED"]))
+        col2.metric("Users", saved["user"].nunique() if "user" in saved.columns else 1)
+        col3.metric("Top Category", saved["category"].value_counts().idxmax())
 
-        # LIVE FEED
-        st.markdown("### 📡 Government Live Complaint Feed")
+        st.markdown("### 📋 LIVE COMPLAINT TABLE (FIXED)")
 
-        def color_status(val):
-            if val == "NEW":
-                return "🔵 NEW"
-            elif val == "IN PROGRESS":
-                return "🟡 IN PROGRESS"
-            else:
-                return "🟢 RESOLVED"
+        # FIX: stable sorting for real-time feel
+        st.dataframe(
+            saved.sort_values(by=saved.columns[0], ascending=False),
+            use_container_width=True
+        )
 
-        saved["status"] = saved["status"].apply(color_status)
+    else:
+        st.warning("No complaints found yet.")
 
-        st.dataframe(saved.sort_values(saved.columns[0], ascending=False), use_container_width=True)
-
-# ================== ANALYTICS ==================
+# ================== ANALYTICS (FIXED CHART STABILITY) ==================
 with tabs[2]:
 
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
-    if not saved.empty:
+    if saved is not None and not saved.empty:
 
         st.markdown("## 📊 Analytics Dashboard")
+
+        # FIX: safe grouping
+        category_counts = saved["category"].value_counts()
 
         col1, col2, col3 = st.columns(3)
         col1.metric("Total", len(saved))
         col2.metric("Categories", saved["category"].nunique())
-        col3.metric("Top", saved["category"].value_counts().idxmax())
+        col3.metric("Top", category_counts.idxmax() if len(category_counts) > 0 else "N/A")
 
+        # PIE FIX
         st.markdown("### 🥧 Category Distribution")
         fig1, ax1 = plt.subplots(figsize=(6, 6))
-        saved["category"].value_counts().plot.pie(autopct="%1.1f%%", ax=ax1)
+        category_counts.plot.pie(autopct="%1.1f%%", ax=ax1)
         ax1.set_ylabel("")
         st.pyplot(fig1)
 
+        # BAR FIX
         st.markdown("### 📊 Category Volume")
         fig2, ax2 = plt.subplots(figsize=(8, 4))
-        saved["category"].value_counts().plot.bar(ax=ax2)
+        category_counts.plot.bar(ax=ax2)
         st.pyplot(fig2)
+
+        # TREND FIX
+        st.markdown("### 📈 Trend")
+        fig3, ax3 = plt.subplots(figsize=(8, 4))
+        category_counts.cumsum().plot(ax=ax3)
+        st.pyplot(fig3)
+
+    else:
+        st.warning("No data available for analytics.")
 
 # ================== CHATBOT ==================
 with tabs[3]:
