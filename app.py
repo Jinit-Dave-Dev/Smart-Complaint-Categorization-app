@@ -5,32 +5,25 @@ import pandas as pd
 import sqlite3
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
-import plotly.express as px
 
 st.set_page_config(page_title="Smart Complaint System", layout="wide")
 
-# -------------------- PREMIUM UI --------------------
+# -------------------- UI --------------------
 st.markdown("""
 <style>
 .stApp {
     background: linear-gradient(135deg, #0f172a, #1e293b, #0f172a);
     color: white;
 }
-
 .stButton button {
     background: linear-gradient(90deg, #4f46e5, #06b6d4);
     color: white;
     border-radius: 10px;
-    transition: 0.3s;
-}
-
-.stButton button:hover {
-    transform: scale(1.05);
 }
 </style>
 """, unsafe_allow_html=True)
 
-# -------------------- DATABASE --------------------
+# -------------------- DB --------------------
 conn = sqlite3.connect("complaints.db", check_same_thread=False)
 c = conn.cursor()
 
@@ -83,7 +76,7 @@ if st.sidebar.button("Logout"):
     st.session_state.logged_in = False
     st.rerun()
 
-# -------------------- LOAD --------------------
+# -------------------- LOAD MODEL --------------------
 vectorizer = pickle.load(open("tfidf_vectorizer.pkl", "rb"))
 le = pickle.load(open("label_encoder.pkl", "rb"))
 model = pickle.load(open("logistic_regression_model.pkl", "rb"))
@@ -106,11 +99,6 @@ def clean_category(val):
     elif "garbage" in val: return "Garbage"
     elif "electric" in val: return "Electricity"
     return "Other"
-
-def ensure_columns(df):
-    if "status" not in df.columns:
-        df["status"] = "NEW"
-    return df
 
 # -------------------- UI --------------------
 st.title("🏛️ Smart Municipal Complaint System")
@@ -150,28 +138,19 @@ with tabs[1]:
 
         saved["category"] = saved["category"].apply(clean_category)
 
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Total", len(saved))
-        col2.metric("Categories", saved["category"].nunique())
-        col3.metric("Users", saved["user"].nunique())
-
-        # -------- IMPROVED FILTER --------
-        st.markdown("### 🔎 Filter Complaints")
+        st.metric("Total Complaints", len(saved))
 
         categories = st.multiselect(
-            "Select Category",
+            "Filter Category",
             saved["category"].unique(),
             default=list(saved["category"].unique())
         )
 
         filtered = saved[saved["category"].isin(categories)]
 
-        if st.button("Reset Filter"):
-            filtered = saved
-
         st.dataframe(filtered, use_container_width=True)
 
-# ================== ANALYTICS (POWER BI STYLE) ==================
+# ================== ANALYTICS (NO PLOTLY) ==================
 with tabs[2]:
 
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
@@ -180,33 +159,19 @@ with tabs[2]:
 
         saved["category"] = saved["category"].apply(clean_category)
 
-        # -------- KPI CARDS --------
+        # -------- KPI --------
         col1, col2, col3 = st.columns(3)
-
         col1.metric("Total Complaints", len(saved))
         col2.metric("Categories", saved["category"].nunique())
         col3.metric("Top Category", saved["category"].value_counts().idxmax())
 
-        # -------- PIE CHART --------
+        # -------- PIE (STREAMLIT) --------
         st.markdown("### 🥧 Category Distribution")
+        st.bar_chart(saved["category"].value_counts())
 
-        pie = px.pie(
-            saved,
-            names="category",
-            title="Complaint Share by Category"
-        )
-        st.plotly_chart(pie, use_container_width=True)
-
-        # -------- BAR CHART --------
-        st.markdown("### 📊 Category Count")
-
-        bar = px.bar(
-            saved["category"].value_counts().reset_index(),
-            x="index",
-            y="category",
-            labels={"index": "Category", "category": "Count"}
-        )
-        st.plotly_chart(bar, use_container_width=True)
+        # -------- BAR --------
+        st.markdown("### 📊 Category Breakdown")
+        st.bar_chart(saved["category"].value_counts())
 
 # ================== CHATBOT ==================
 with tabs[3]:
@@ -218,7 +183,6 @@ with tabs[3]:
 
     msg = col1.text_input("Ask anything...")
 
-    # -------- DELETE CHAT --------
     if col2.button("🗑️ Clear Chat"):
         st.session_state.chat = []
 
@@ -234,7 +198,7 @@ with tabs[3]:
         elif "road" in m:
             reply = "🛣️ Road issue logged"
         else:
-            reply = "I found something similar from dataset."
+            reply = "I found a similar complaint in dataset."
 
         st.session_state.chat.append(("Bot", reply))
 
