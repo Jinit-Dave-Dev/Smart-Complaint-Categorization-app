@@ -16,6 +16,7 @@ c.execute("CREATE TABLE IF NOT EXISTS users (username TEXT, password TEXT)")
 c.execute("""CREATE TABLE IF NOT EXISTS complaints (
     user TEXT,
     complaint TEXT,
+    prediction TEXT,
     category TEXT,
     confidence TEXT
 )""")
@@ -30,6 +31,7 @@ if "user" not in st.session_state:
 # -------------------- LOGIN --------------------
 def login():
     st.title("🔐 Login")
+
     u = st.text_input("Username")
     p = st.text_input("Password", type="password")
 
@@ -95,7 +97,7 @@ def safe_confidence(val):
     except:
         return np.random.uniform(55, 75)
 
-def ensure_status_column(df):
+def ensure_columns(df):
     if "status" not in df.columns:
         df["status"] = "NEW"
     return df
@@ -115,6 +117,7 @@ tabs = st.tabs(["📝 Complaint", "📊 Dashboard", "📈 Analytics", "🤖 Chat
 
 # ================== COMPLAINT ==================
 with tabs[0]:
+
     text = st.text_area("Enter your complaint")
 
     if st.button("Submit Complaint"):
@@ -122,15 +125,20 @@ with tabs[0]:
 
             X = vectorizer.transform([text])
             pred = model.predict(X)
-            cat = clean_category(le.inverse_transform(pred)[0])
+            prediction = le.inverse_transform(pred)[0]
+            cat = clean_category(prediction)
 
             try:
                 conf = round(model.predict_proba(X).max() * 100, 2)
             except:
                 conf = np.random.uniform(60, 80)
 
-            c.execute("INSERT INTO complaints VALUES (?,?,?,?)",
-                      (st.session_state.user, text, cat, str(conf)))
+            # ✅ SAFE INSERT (FIXED)
+            c.execute("""
+                INSERT INTO complaints (user, complaint, prediction, category, confidence)
+                VALUES (?, ?, ?, ?, ?)
+            """, (st.session_state.user, text, prediction, cat, str(conf)))
+
             conn.commit()
 
             st.success("✅ Complaint Registered")
@@ -152,13 +160,15 @@ with tabs[0]:
 
 # ================== DASHBOARD ==================
 with tabs[1]:
+
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
     if not saved.empty:
+
         saved["category"] = saved["category"].apply(clean_category)
         saved["confidence"] = saved["confidence"].apply(safe_confidence)
 
-        saved = ensure_status_column(saved)
+        saved = ensure_columns(saved)
 
         col1, col2, col3 = st.columns(3)
         col1.metric("Total Complaints", len(saved))
@@ -168,17 +178,19 @@ with tabs[1]:
         st.dataframe(saved, use_container_width=True)
 
         cat = st.selectbox("Filter by Category", saved["category"].unique())
-        st.dataframe(saved[saved["category"] == cat])
+        st.dataframe(saved[saved["category"] == cat], use_container_width=True)
 
 # ================== ANALYTICS ==================
 with tabs[2]:
+
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
     if not saved.empty:
+
         saved["category"] = saved["category"].apply(clean_category)
         saved["confidence"] = saved["confidence"].apply(safe_confidence)
 
-        saved = ensure_status_column(saved)
+        saved = ensure_columns(saved)
 
         st.markdown("### 📊 Category Distribution")
         st.bar_chart(saved["category"].value_counts())
@@ -199,6 +211,7 @@ with tabs[3]:
 
     if msg:
         st.session_state.chat.append(("You", msg))
+
         m = msg.lower()
 
         if any(x in m for x in ["hi", "hello", "hey"]):
