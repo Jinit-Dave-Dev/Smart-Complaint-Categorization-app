@@ -5,6 +5,7 @@ import pandas as pd
 import sqlite3
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
+import matplotlib.pyplot as plt
 
 st.set_page_config(page_title="Smart Complaint System", layout="wide")
 
@@ -72,7 +73,6 @@ if not st.session_state.logged_in:
 st.sidebar.title("📊 Dashboard")
 st.sidebar.write(f"👤 Logged in as: {st.session_state.user}")
 
-# ✅ RESTORED DEVELOPER NAME
 st.sidebar.markdown("### 👨‍💻 Developer")
 st.sidebar.write("Jinit Dave")
 
@@ -104,6 +104,23 @@ def clean_category(val):
     elif "electric" in val: return "Electricity"
     return "Other"
 
+def chatbot_reply(msg):
+    m = msg.lower()
+
+    if any(x in m for x in ["hi", "hello", "hey"]):
+        return "👋 Hello! How can I help you with complaints?"
+    elif "water" in m:
+        return "💧 Water issue detected. Registered in system."
+    elif "road" in m:
+        return "🛣️ Road issue noted. Will be escalated."
+    elif "electric" in m:
+        return "⚡ Electricity issue logged."
+    elif "status" in m:
+        return "📊 Check Dashboard tab for status."
+    else:
+        sample = df.sample(1)[complaint_col].values[0]
+        return f"Similar complaint found:\n➡ {sample}"
+
 # -------------------- UI --------------------
 st.title("🏛️ Smart Municipal Complaint System")
 
@@ -114,47 +131,39 @@ with tabs[0]:
 
     text = st.text_area("Enter your complaint")
 
-    if st.button("Submit Complaint"):
+    if st.button("Submit Complaint") and text.strip():
 
-        if text.strip():
+        X = vectorizer.transform([text])
+        pred = model.predict(X)
+        prediction = le.inverse_transform(pred)[0]
+        cat = clean_category(prediction)
 
-            X = vectorizer.transform([text])
-            pred = model.predict(X)
-            prediction = le.inverse_transform(pred)[0]
-            cat = clean_category(prediction)
+        try:
+            conf = round(model.predict_proba(X).max() * 100, 2)
+        except:
+            conf = np.random.uniform(60, 80)
 
-            try:
-                conf = round(model.predict_proba(X).max() * 100, 2)
-            except:
-                conf = np.random.uniform(60, 80)
+        c.execute("""
+            INSERT INTO complaints VALUES (?, ?, ?, ?, ?)
+        """, (st.session_state.user, text, prediction, cat, str(conf)))
 
-            c.execute("""
-                INSERT INTO complaints VALUES (?, ?, ?, ?, ?)
-            """, (st.session_state.user, text, prediction, cat, str(conf)))
+        conn.commit()
 
-            conn.commit()
+        st.success("Complaint Registered")
 
-            # ❗ RESTORED FULL OUTPUT UI
-            st.success("Complaint Registered")
+        col1, col2 = st.columns(2)
+        col1.metric("Category", cat)
+        col2.metric("Confidence", f"{conf:.2f}%")
 
-            col1, col2 = st.columns(2)
-            col1.metric("Predicted Category", cat)
-            col2.metric("Confidence", f"{conf:.2f}%")
+        st.markdown("### 🔍 Similar Complaints")
 
-            st.markdown("### 📋 Prediction Details")
-            st.write(f"**Prediction:** {prediction}")
-            st.write(f"**Category:** {cat}")
+        X_all = vectorizer.transform(df[complaint_col])
+        X_input = vectorizer.transform([text])
 
-            # -------- SIMILAR COMPLAINTS --------
-            st.markdown("### 🔍 Similar Complaints")
+        sim = cosine_similarity(X_input, X_all)[0]
+        idx = np.argsort(sim)[-5:][::-1]
 
-            X_all = vectorizer.transform(df[complaint_col])
-            X_input = vectorizer.transform([text])
-
-            sim = cosine_similarity(X_input, X_all)[0]
-            idx = np.argsort(sim)[-5:][::-1]
-
-            st.dataframe(df.iloc[idx], use_container_width=True)
+        st.dataframe(df.iloc[idx], use_container_width=True)
 
 # ================== DASHBOARD ==================
 with tabs[1]:
@@ -170,17 +179,19 @@ with tabs[1]:
         col2.metric("Categories", saved["category"].nunique())
         col3.metric("Top Category", saved["category"].value_counts().idxmax())
 
+        st.markdown("### 📋 All Complaints")
         st.dataframe(saved, use_container_width=True)
 
+        st.markdown("### 🔎 Filter by Category")
         cat = st.multiselect(
-            "Filter by Category",
+            "Select Category",
             saved["category"].unique(),
             default=list(saved["category"].unique())
         )
 
         st.dataframe(saved[saved["category"].isin(cat)], use_container_width=True)
 
-# ================== ANALYTICS ==================
+# ================== ANALYTICS (POWER BI STYLE FIXED) ==================
 with tabs[2]:
 
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
@@ -189,24 +200,40 @@ with tabs[2]:
 
         saved["category"] = saved["category"].apply(clean_category)
 
+        st.markdown("## 📊 KPI DASHBOARD")
+
         col1, col2, col3 = st.columns(3)
         col1.metric("Total Complaints", len(saved))
         col2.metric("Categories", saved["category"].nunique())
         col3.metric("Top Category", saved["category"].value_counts().idxmax())
 
-        st.markdown("### 🥧 Category Distribution")
-        st.bar_chart(saved["category"].value_counts())
+        # -------- PIE CHART --------
+        st.markdown("### 🥧 Category Distribution (Pie Chart)")
 
-        st.markdown("### 📊 Category Breakdown")
-        st.bar_chart(saved["category"].value_counts())
+        fig1, ax1 = plt.subplots()
+        saved["category"].value_counts().plot.pie(
+            autopct="%1.1f%%",
+            ax=ax1
+        )
+        ax1.set_ylabel("")
+        st.pyplot(fig1)
 
-# ================== CHATBOT ==================
+        # -------- BAR CHART --------
+        st.markdown("### 📊 Category Count (Bar Chart)")
+
+        fig2, ax2 = plt.subplots()
+        saved["category"].value_counts().plot.bar(ax=ax2)
+        ax2.set_xlabel("Category")
+        ax2.set_ylabel("Count")
+        st.pyplot(fig2)
+
+# ================== CHATBOT (FIXED) ==================
 with tabs[3]:
 
     if "chat" not in st.session_state:
         st.session_state.chat = []
 
-    col1, col2 = st.columns([3,1])
+    col1, col2 = st.columns([3, 1])
 
     msg = col1.text_input("Ask anything...")
 
@@ -215,19 +242,12 @@ with tabs[3]:
 
     if msg:
         st.session_state.chat.append(("You", msg))
-
-        m = msg.lower()
-
-        if "hello" in m:
-            reply = "Hey 👋 How can I help?"
-        elif "water" in m:
-            reply = "💧 Water issue detected"
-        elif "road" in m:
-            reply = "🛣️ Road issue logged"
-        else:
-            reply = "I found a similar complaint in dataset."
-
+        reply = chatbot_reply(msg)
         st.session_state.chat.append(("Bot", reply))
 
-    for s, m in st.session_state.chat:
-        st.write(f"**{s}:** {m}")
+    # CLEAN CHAT UI (FIXED FLOW)
+    for role, message in st.session_state.chat:
+        if role == "You":
+            st.markdown(f"**🧑 You:** {message}")
+        else:
+            st.markdown(f"**🤖 Bot:** {message}")
