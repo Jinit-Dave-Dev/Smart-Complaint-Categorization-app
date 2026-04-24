@@ -72,9 +72,9 @@ if not st.session_state.logged_in:
     login()
     st.stop()
 
-# -------------------- SIDEBAR (UPGRADED NAV) --------------------
-st.sidebar.title("🏛️ Government Control Panel")
-menu = st.sidebar.radio("Navigate", ["Dashboard", "Complaints", "Analytics", "Chatbot"])
+# -------------------- SIDEBAR --------------------
+st.sidebar.title("🏛️ Govt Complaint Portal")
+page = st.sidebar.radio("Navigate", ["Submit Complaint", "All Complaints", "Analytics", "Chatbot"])
 
 st.sidebar.write(f"👤 {st.session_state.user}")
 
@@ -100,44 +100,44 @@ df.columns = df.columns.str.strip()
 complaint_col = next((c for c in df.columns if "complaint" in c.lower()), None)
 df[complaint_col] = df[complaint_col].astype(str)
 
-# -------------------- CATEGORY --------------------
+# -------------------- FUNCTIONS --------------------
 def get_category(text):
     t = re.sub(r'[^a-zA-Z ]', ' ', str(text).lower())
 
-    if any(x in t for x in ["road", "pothole", "street"]):
+    if "road" in t:
         return "Road"
-    if any(x in t for x in ["water", "leak", "pipeline"]):
+    if "water" in t:
         return "Water"
-    if any(x in t for x in ["garbage", "waste"]):
+    if "garbage" in t:
         return "Garbage"
-    if any(x in t for x in ["electric", "power"]):
+    if "electric" in t:
         return "Electricity"
     return "Other"
 
 def get_priority(text, category):
     t = text.lower()
-    if any(x in t for x in ["accident", "burst", "fire", "danger"]):
-        return "🔴 HIGH"
+    if any(x in t for x in ["fire", "accident", "burst"]):
+        return "HIGH"
     if category in ["Road", "Water", "Electricity"]:
-        return "🟡 MEDIUM"
-    return "🟢 LOW"
+        return "MEDIUM"
+    return "LOW"
 
 def chatbot(msg):
     m = msg.lower()
-    if any(x in m for x in ["hi", "hello", "hey"]):
-        return "👋 Hello!"
+    if "hello" in m:
+        return "👋 Hello! How can I help?"
     if "road" in m:
         return "🛣️ Road complaint registered."
-    return "📌 Complaint recorded."
+    return "📌 Your complaint is recorded."
 
-# ================== COMPLAINT ==================
-if menu == "Complaints":
+# ================== PAGE 1: SUBMIT ==================
+if page == "Submit Complaint":
 
-    st.title("📝 Complaint Submission + Admin View")
+    st.title("📝 Submit Complaint")
 
     text = st.text_area("Enter complaint")
 
-    if st.button("Submit Complaint") and text.strip():
+    if st.button("Submit") and text.strip():
 
         X = vectorizer.transform([text])
         pred = model.predict(X)
@@ -146,68 +146,74 @@ if menu == "Complaints":
         category = get_category(text)
         priority = get_priority(text, category)
 
-        conf = np.random.uniform(60, 90)
+        try:
+            conf = round(model.predict_proba(X).max() * 100, 2)
+        except:
+            conf = 70
 
         c.execute("""
             INSERT INTO complaints VALUES (?, ?, ?, ?, ?)
         """, (st.session_state.user, text, prediction, category, str(conf)))
         conn.commit()
 
-        st.success("Complaint Registered")
+        st.success("Complaint Submitted Successfully")
         st.info(f"Priority: {priority}")
 
-    st.markdown("### 📌 Complaint Detail Viewer")
+# ================== PAGE 2: ALL COMPLAINTS ==================
+elif page == "All Complaints":
+
+    st.title("📋 Complaint Management Panel")
 
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
     if not saved.empty:
-        selected = st.selectbox("Select Complaint", saved.index)
 
-        st.write(saved.loc[selected])
-
-        # Department Assignment (NEW FEATURE)
-        dept = st.selectbox("Assign Department", ["Road Dept", "Water Dept", "Electric Dept", "Sanitation"])
-        status = st.selectbox("Update Status", ["NEW", "IN PROGRESS", "RESOLVED"])
-
-        if st.button("Update Complaint"):
-            st.success(f"Updated to {status} → {dept}")
-
-# ================== DASHBOARD ==================
-elif menu == "Dashboard":
-
-    st.title("🏛️ Government Dashboard")
-
-    saved = pd.read_sql_query("SELECT * FROM complaints", conn)
-
-    if not saved.empty:
+        saved["Status"] = "NEW"
+        saved["Priority"] = saved.apply(lambda x: get_priority(x["complaint"], x["category"]), axis=1)
 
         st.metric("Total Complaints", len(saved))
-        st.metric("Users", saved["user"].nunique())
 
-        st.markdown("### 🔴 Live Feed")
+        # clickable selection
+        idx = st.selectbox("Select Complaint ID", saved.index)
+
+        st.write("### Complaint Details")
+        st.write(saved.loc[idx])
+
+        # workflow system
+        new_status = st.selectbox("Update Status", ["NEW", "IN PROGRESS", "RESOLVED"])
+        dept = st.selectbox("Assign Department", ["Road", "Water", "Electricity", "Sanitation"])
+
+        if st.button("Update Complaint"):
+            st.success(f"Updated → {new_status} | Dept → {dept}")
+
+        st.markdown("### 📊 All Complaints Table")
         st.dataframe(saved, use_container_width=True)
 
-# ================== ANALYTICS ==================
-elif menu == "Analytics":
+# ================== PAGE 3: ANALYTICS ==================
+elif page == "Analytics":
 
-    st.title("📊 Analytics Panel")
+    st.title("📊 Analytics Dashboard")
 
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
     if not saved.empty:
 
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total", len(saved))
+        col2.metric("Categories", saved["category"].nunique())
+        col3.metric("Top", saved["category"].value_counts().idxmax())
+
         st.bar_chart(saved["category"].value_counts())
-        st.area_chart(saved["confidence"].astype(float))
 
-# ================== CHATBOT ==================
-elif menu == "Chatbot":
+# ================== PAGE 4: CHATBOT ==================
+elif page == "Chatbot":
 
-    st.title("🤖 Chatbot")
+    st.title("🤖 Chatbot Assistant")
 
     if "chat" not in st.session_state:
         st.session_state.chat = []
 
-    msg = st.text_input("Ask...")
+    msg = st.text_input("Ask something...")
 
     col1, col2 = st.columns([3,1])
 
