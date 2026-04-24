@@ -23,7 +23,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# -------------------- DB --------------------
+# -------------------- DATABASE --------------------
 conn = sqlite3.connect("complaints.db", check_same_thread=False)
 c = conn.cursor()
 
@@ -70,13 +70,17 @@ if not st.session_state.logged_in:
 
 # -------------------- SIDEBAR --------------------
 st.sidebar.title("📊 Dashboard")
-st.sidebar.write(f"👤 {st.session_state.user}")
+st.sidebar.write(f"👤 Logged in as: {st.session_state.user}")
+
+# ✅ RESTORED DEVELOPER NAME
+st.sidebar.markdown("### 👨‍💻 Developer")
+st.sidebar.write("Jinit Dave")
 
 if st.sidebar.button("Logout"):
     st.session_state.logged_in = False
     st.rerun()
 
-# -------------------- LOAD MODEL --------------------
+# -------------------- LOAD --------------------
 vectorizer = pickle.load(open("tfidf_vectorizer.pkl", "rb"))
 le = pickle.load(open("label_encoder.pkl", "rb"))
 model = pickle.load(open("logistic_regression_model.pkl", "rb"))
@@ -112,22 +116,45 @@ with tabs[0]:
 
     if st.button("Submit Complaint"):
 
-        X = vectorizer.transform([text])
-        pred = model.predict(X)
-        prediction = le.inverse_transform(pred)[0]
-        cat = clean_category(prediction)
+        if text.strip():
 
-        try:
-            conf = round(model.predict_proba(X).max() * 100, 2)
-        except:
-            conf = np.random.uniform(60, 80)
+            X = vectorizer.transform([text])
+            pred = model.predict(X)
+            prediction = le.inverse_transform(pred)[0]
+            cat = clean_category(prediction)
 
-        c.execute("""
-            INSERT INTO complaints VALUES (?, ?, ?, ?, ?)
-        """, (st.session_state.user, text, prediction, cat, str(conf)))
+            try:
+                conf = round(model.predict_proba(X).max() * 100, 2)
+            except:
+                conf = np.random.uniform(60, 80)
 
-        conn.commit()
-        st.success("Complaint Registered")
+            c.execute("""
+                INSERT INTO complaints VALUES (?, ?, ?, ?, ?)
+            """, (st.session_state.user, text, prediction, cat, str(conf)))
+
+            conn.commit()
+
+            # ❗ RESTORED FULL OUTPUT UI
+            st.success("Complaint Registered")
+
+            col1, col2 = st.columns(2)
+            col1.metric("Predicted Category", cat)
+            col2.metric("Confidence", f"{conf:.2f}%")
+
+            st.markdown("### 📋 Prediction Details")
+            st.write(f"**Prediction:** {prediction}")
+            st.write(f"**Category:** {cat}")
+
+            # -------- SIMILAR COMPLAINTS --------
+            st.markdown("### 🔍 Similar Complaints")
+
+            X_all = vectorizer.transform(df[complaint_col])
+            X_input = vectorizer.transform([text])
+
+            sim = cosine_similarity(X_input, X_all)[0]
+            idx = np.argsort(sim)[-5:][::-1]
+
+            st.dataframe(df.iloc[idx], use_container_width=True)
 
 # ================== DASHBOARD ==================
 with tabs[1]:
@@ -138,19 +165,22 @@ with tabs[1]:
 
         saved["category"] = saved["category"].apply(clean_category)
 
-        st.metric("Total Complaints", len(saved))
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total Complaints", len(saved))
+        col2.metric("Categories", saved["category"].nunique())
+        col3.metric("Top Category", saved["category"].value_counts().idxmax())
 
-        categories = st.multiselect(
-            "Filter Category",
+        st.dataframe(saved, use_container_width=True)
+
+        cat = st.multiselect(
+            "Filter by Category",
             saved["category"].unique(),
             default=list(saved["category"].unique())
         )
 
-        filtered = saved[saved["category"].isin(categories)]
+        st.dataframe(saved[saved["category"].isin(cat)], use_container_width=True)
 
-        st.dataframe(filtered, use_container_width=True)
-
-# ================== ANALYTICS (NO PLOTLY) ==================
+# ================== ANALYTICS ==================
 with tabs[2]:
 
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
@@ -159,17 +189,14 @@ with tabs[2]:
 
         saved["category"] = saved["category"].apply(clean_category)
 
-        # -------- KPI --------
         col1, col2, col3 = st.columns(3)
         col1.metric("Total Complaints", len(saved))
         col2.metric("Categories", saved["category"].nunique())
         col3.metric("Top Category", saved["category"].value_counts().idxmax())
 
-        # -------- PIE (STREAMLIT) --------
         st.markdown("### 🥧 Category Distribution")
         st.bar_chart(saved["category"].value_counts())
 
-        # -------- BAR --------
         st.markdown("### 📊 Category Breakdown")
         st.bar_chart(saved["category"].value_counts())
 
