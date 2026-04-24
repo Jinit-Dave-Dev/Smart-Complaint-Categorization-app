@@ -11,22 +11,17 @@ from datetime import datetime
 
 st.set_page_config(page_title="Smart Complaint System", layout="wide")
 
-# -------------------- UI (cleaner professional polish only) --------------------
+# -------------------- UI --------------------
 st.markdown("""
 <style>
 .stApp {
     background: linear-gradient(135deg, #0f172a, #1e293b, #0f172a);
     color: #f1f5f9;
-    font-family: 'Segoe UI';
 }
 .stButton button {
     background: linear-gradient(90deg, #4f46e5, #06b6d4);
     color: white;
     border-radius: 10px;
-    border: none;
-}
-[data-testid="stMetricValue"] {
-    font-size: 22px;
 }
 </style>
 """, unsafe_allow_html=True)
@@ -81,18 +76,14 @@ if not st.session_state.logged_in:
     st.stop()
 
 # -------------------- SIDEBAR --------------------
-st.sidebar.title("📊 Dashboard")
+st.sidebar.title("📊 Smart System")
 st.sidebar.write(f"👤 {st.session_state.user}")
-
-st.sidebar.markdown("---")
-st.sidebar.markdown("### 👨‍💻 Developer")
-st.sidebar.write("Jinit Dave")
 
 if st.sidebar.button("Logout"):
     st.session_state.logged_in = False
     st.rerun()
 
-# -------------------- LOAD --------------------
+# -------------------- LOAD MODELS --------------------
 vectorizer = pickle.load(open("tfidf_vectorizer.pkl", "rb"))
 le = pickle.load(open("label_encoder.pkl", "rb"))
 model = pickle.load(open("logistic_regression_model.pkl", "rb"))
@@ -107,42 +98,49 @@ df.columns = df.columns.str.strip()
 complaint_col = next((c for c in df.columns if "complaint" in c.lower()), None)
 df[complaint_col] = df[complaint_col].astype(str)
 
-# -------------------- CATEGORY (more stable matching) --------------------
+# -------------------- CATEGORY ENGINE (STABLE) --------------------
 def get_category(text):
     t = re.sub(r'[^a-zA-Z ]', ' ', str(text).lower())
 
-    if any(x in t for x in ["road", "pothole", "street"]):
-        return "Road"
-    elif any(x in t for x in ["water", "leak", "pipeline"]):
-        return "Water"
-    elif any(x in t for x in ["garbage", "waste", "trash"]):
-        return "Garbage"
-    elif any(x in t for x in ["electric", "power", "light"]):
-        return "Electricity"
+    mapping = {
+        "road": "Road",
+        "pothole": "Road",
+        "water": "Water",
+        "leak": "Water",
+        "garbage": "Garbage",
+        "waste": "Garbage",
+        "electric": "Electricity",
+        "power": "Electricity"
+    }
+
+    for k, v in mapping.items():
+        if k in t:
+            return v
+
     return "Other"
 
-# -------------------- CHATBOT (refined natural responses) --------------------
+# -------------------- CHATBOT (STABLE LOGIC) --------------------
 def chatbot(msg):
     m = msg.lower()
 
     if any(x in m for x in ["hi", "hello", "hey"]):
-        return "👋 Hello! How can I assist you with your complaint today?"
+        return "👋 Hello! How can I help you today?"
 
     if "road" in m:
-        return "🛣️ Road complaint registered and forwarded to PWD department."
+        return "🛣️ Road complaint registered and sent to department."
 
     if "water" in m:
-        return "💧 Water complaint logged. Relevant municipal team notified."
+        return "💧 Water issue recorded and under review."
 
     if "electric" in m:
-        return "⚡ Electricity complaint recorded and sent to energy department."
+        return "⚡ Electricity complaint forwarded to authority."
 
     if "status" in m:
-        return "📊 You can track real-time updates in the Dashboard tab."
+        return "📊 Check Dashboard for live complaint updates."
 
-    return "📌 Your complaint has been recorded. It will be processed soon."
+    return "📌 Your complaint has been successfully recorded."
 
-# -------------------- MAIN UI --------------------
+# -------------------- UI --------------------
 st.title("🏛️ Smart Municipal Complaint System")
 
 tabs = st.tabs(["📝 Complaint", "📊 Dashboard", "📈 Analytics", "🤖 Chatbot"])
@@ -163,20 +161,27 @@ with tabs[0]:
         try:
             conf = round(model.predict_proba(X).max() * 100, 2)
         except:
-            conf = np.random.uniform(60, 80)
+            conf = 70.0
 
         c.execute("""
             INSERT INTO complaints VALUES (?, ?, ?, ?, ?)
-        """, (st.session_state.user, text, prediction, category, str(conf)))
+        """, (
+            st.session_state.user,
+            text,
+            prediction,
+            category,
+            str(conf)
+        ))
 
         conn.commit()
 
-        st.success("Complaint Registered Successfully")
+        st.success("Complaint Registered")
 
         col1, col2 = st.columns(2)
         col1.metric("Category", category)
         col2.metric("Confidence", f"{conf}%")
 
+        # Similar complaints (optimized)
         st.markdown("### 🔍 Similar Complaints")
 
         X_all = vectorizer.transform(df[complaint_col])
@@ -202,7 +207,7 @@ with tabs[1]:
         col2.metric("Users", saved["user"].nunique())
         col3.metric("Top Category", saved["category"].value_counts().idxmax())
 
-        st.markdown("### 📋 Complaint Records (Latest First)")
+        st.markdown("### 📋 Complaint Records")
         st.dataframe(saved.sort_values("timestamp", ascending=False), use_container_width=True)
 
 # ================== ANALYTICS ==================
@@ -212,31 +217,25 @@ with tabs[2]:
 
     if not saved.empty:
 
-        st.markdown("## 📊 System Analytics Overview")
+        st.markdown("## 📊 Analytics Overview")
 
         col1, col2, col3 = st.columns(3)
-        col1.metric("Total Complaints", len(saved))
+        col1.metric("Total", len(saved))
         col2.metric("Categories", saved["category"].nunique())
-        col3.metric("Top Category", saved["category"].value_counts().idxmax())
+        col3.metric("Top", saved["category"].value_counts().idxmax())
 
-        st.markdown("### 🥧 Category Distribution")
+        # PIE
+        st.markdown("### 🥧 Category Split")
         fig1, ax1 = plt.subplots(figsize=(6, 5))
         saved["category"].value_counts().plot.pie(autopct="%1.1f%%", ax=ax1)
         ax1.set_ylabel("")
         st.pyplot(fig1)
 
-        st.markdown("### 📊 Category Volume")
-        fig2, ax2 = plt.subplots(figsize=(8, 4))
+        # BAR
+        st.markdown("### 📊 Category Count")
+        fig2, ax2 = plt.subplots(figsize=(7, 4))
         saved["category"].value_counts().plot.bar(ax=ax2)
-        ax2.set_xlabel("Category")
-        ax2.set_ylabel("Count")
         st.pyplot(fig2)
-
-        st.markdown("### 📈 Trend Insight")
-        fig3, ax3 = plt.subplots(figsize=(8, 4))
-        saved["category"].value_counts().cumsum().plot(ax=ax3)
-        ax3.set_ylabel("Cumulative Growth")
-        st.pyplot(fig3)
 
 # ================== CHATBOT ==================
 with tabs[3]:
@@ -244,19 +243,20 @@ with tabs[3]:
     if "chat" not in st.session_state:
         st.session_state.chat = []
 
-    msg = st.text_input("Ask anything about your complaint system")
+    msg = st.text_input("Ask something...")
 
     col1, col2 = st.columns([3, 1])
 
+    if msg:
+        reply = chatbot(msg)
+        st.session_state.chat.append(("You", msg))
+        st.session_state.chat.append(("Bot", reply))
+
     if col2.button("Clear Chat"):
         st.session_state.chat = []
-
-    if msg:
-        st.session_state.chat.append(("You", msg))
-        st.session_state.chat.append(("Assistant", chatbot(msg)))
 
     for role, text in st.session_state.chat:
         if role == "You":
             st.markdown(f"🧑 **You:** {text}")
         else:
-            st.markdown(f"🤖 **Assistant:** {text}")
+            st.markdown(f"🤖 **Bot:** {text}")
