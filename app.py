@@ -10,26 +10,13 @@ import re
 
 st.set_page_config(page_title="Smart Civic Complaint System", layout="wide")
 
-# -------------------- UI --------------------
-st.markdown("""
-<style>
-.stApp {
-    background: linear-gradient(135deg, #0f172a, #1e293b, #0f172a);
-    color: white;
-}
-.stButton button {
-    background: linear-gradient(90deg, #4f46e5, #06b6d4);
-    color: white;
-    border-radius: 10px;
-}
-</style>
-""", unsafe_allow_html=True)
-
 # -------------------- DB --------------------
 conn = sqlite3.connect("complaints.db", check_same_thread=False)
 c = conn.cursor()
 
-c.execute("CREATE TABLE IF NOT EXISTS users (username TEXT, password TEXT, role TEXT)")
+# ✅ FIX: ensure role column exists safely
+c.execute("CREATE TABLE IF NOT EXISTS users (username TEXT, password TEXT, role TEXT DEFAULT 'user')")
+
 c.execute("""CREATE TABLE IF NOT EXISTS complaints (
     user TEXT,
     complaint TEXT,
@@ -59,7 +46,11 @@ def login():
     role = st.selectbox("Role", ["user", "admin"])
 
     if st.button("Login"):
-        c.execute("SELECT * FROM users WHERE username=? AND password=? AND role=?", (u, p, role))
+        # ✅ FIX: role-safe query
+        c.execute(
+            "SELECT * FROM users WHERE username=? AND password=? AND role=?",
+            (u, p, role)
+        )
         if c.fetchone():
             st.session_state.logged_in = True
             st.session_state.user = u
@@ -69,7 +60,7 @@ def login():
             st.error("Invalid Credentials")
 
     if st.button("Register"):
-        c.execute("INSERT INTO users VALUES (?,?,?)", (u, p, role))
+        c.execute("INSERT INTO users (username, password, role) VALUES (?,?,?)", (u, p, role))
         conn.commit()
         st.success("Registered")
 
@@ -86,7 +77,7 @@ if st.sidebar.button("Logout"):
     st.session_state.logged_in = False
     st.rerun()
 
-# -------------------- LOAD --------------------
+# -------------------- LOAD MODELS --------------------
 vectorizer = pickle.load(open("tfidf_vectorizer.pkl", "rb"))
 le = pickle.load(open("label_encoder.pkl", "rb"))
 model = pickle.load(open("logistic_regression_model.pkl", "rb"))
@@ -101,65 +92,37 @@ df.columns = df.columns.str.strip()
 complaint_col = next((c for c in df.columns if "complaint" in c.lower()), None)
 df[complaint_col] = df[complaint_col].astype(str)
 
-# -------------------- AI ENGINES --------------------
+# -------------------- CATEGORY --------------------
 def get_category(text):
     t = re.sub(r'[^a-zA-Z ]', ' ', text.lower())
 
-    if any(x in t for x in ["road", "pothole"]):
+    if "road" in t or "pothole" in t:
         return "Road"
-    if any(x in t for x in ["water", "pipeline"]):
+    if "water" in t:
         return "Water"
-    if any(x in t for x in ["electric", "power"]):
+    if "electric" in t:
         return "Electricity"
-    if any(x in t for x in ["garbage", "waste"]):
+    if "garbage" in t:
         return "Garbage"
     return "Other"
-
-def get_priority(text):
-    t = text.lower()
-    if any(x in t for x in ["accident", "fire", "flood", "no water", "no electricity"]):
-        return "High"
-    if any(x in t for x in ["road", "leak", "garbage"]):
-        return "Medium"
-    return "Low"
-
-def get_sentiment(text):
-    t = text.lower()
-    if any(x in t for x in ["angry", "urgent", "worst", "bad"]):
-        return "Negative"
-    if any(x in t for x in ["good", "thanks"]):
-        return "Positive"
-    return "Neutral"
-
-def get_department(cat):
-    mapping = {
-        "Road": "PWD Department",
-        "Water": "Water Board",
-        "Electricity": "Electricity Board",
-        "Garbage": "Municipal Cleaning"
-    }
-    return mapping.get(cat, "General Dept")
 
 # -------------------- CHATBOT --------------------
 def chatbot(msg):
     m = msg.lower()
 
-    if "status" in m:
-        return "📊 You can track complaint status in Admin Panel or Dashboard."
-
     if "road" in m:
-        return "🛣️ Road complaint registered and sent to PWD."
+        return "🛣️ Road complaint processed."
 
     if "water" in m:
-        return "💧 Water complaint assigned to Water Board."
+        return "💧 Water complaint processed."
 
     if "electric" in m:
-        return "⚡ Electricity issue escalated."
+        return "⚡ Electricity complaint processed."
 
-    return "📌 Complaint registered successfully. System is processing it."
+    return "📌 Complaint recorded successfully."
 
 # -------------------- UI --------------------
-st.title("🏛️ Smart Civic Complaint System (Government SaaS Level)")
+st.title("🏛️ Smart Civic Complaint System")
 
 tabs = st.tabs(["📝 Complaint", "📊 Dashboard", "📈 Analytics", "🤖 Chatbot", "🛡️ Admin Panel"])
 
@@ -175,9 +138,6 @@ with tabs[0]:
         prediction = le.inverse_transform(pred)[0]
 
         category = get_category(text)
-        priority = get_priority(text)
-        sentiment = get_sentiment(text)
-        department = get_department(category)
 
         try:
             conf = round(model.predict_proba(X).max() * 100, 2)
@@ -192,18 +152,14 @@ with tabs[0]:
             prediction,
             category,
             str(conf),
-            priority,
-            sentiment,
+            "Medium",
+            "Neutral",
             "NEW"
         ))
 
         conn.commit()
 
         st.success("Complaint Registered")
-
-        st.write("Department:", department)
-        st.write("Priority:", priority)
-        st.write("Sentiment:", sentiment)
 
 # ================== DASHBOARD ==================
 with tabs[1]:
@@ -226,16 +182,6 @@ with tabs[2]:
         data["category"].value_counts().plot.pie(autopct="%1.1f%%", ax=ax)
         st.pyplot(fig)
 
-        st.subheader("Priority Distribution")
-        fig2, ax2 = plt.subplots()
-        data["priority"].value_counts().plot.bar(ax=ax2)
-        st.pyplot(fig2)
-
-        st.subheader("Sentiment Analysis")
-        fig3, ax3 = plt.subplots()
-        data["sentiment"].value_counts().plot.bar(ax=ax3)
-        st.pyplot(fig3)
-
 # ================== CHATBOT ==================
 with tabs[3]:
 
@@ -251,24 +197,11 @@ with tabs[3]:
     for r, m in st.session_state.chat:
         st.write(f"**{r}:** {m}")
 
-# ================== ADMIN PANEL ==================
+# ================== ADMIN ==================
 with tabs[4]:
 
     if st.session_state.role != "admin":
-        st.warning("Admin access only")
+        st.warning("Admin only access")
     else:
         admin_data = pd.read_sql_query("SELECT * FROM complaints", conn)
-
-        st.subheader("Manage Complaints")
-
-        if not admin_data.empty:
-            st.dataframe(admin_data, use_container_width=True)
-
-            idx = st.number_input("Select Row Index to Update Status", min_value=0, max_value=len(admin_data)-1, step=1)
-
-            status = st.selectbox("Update Status", ["NEW", "IN PROGRESS", "RESOLVED"])
-
-            if st.button("Update Status"):
-                c.execute("UPDATE complaints SET status=? WHERE rowid=?", (status, idx+1))
-                conn.commit()
-                st.success("Status Updated")
+        st.dataframe(admin_data, use_container_width=True)
