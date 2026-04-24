@@ -6,6 +6,7 @@ import sqlite3
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 import matplotlib.pyplot as plt
+import re
 
 st.set_page_config(page_title="Smart Complaint System", layout="wide")
 
@@ -95,33 +96,51 @@ df.columns = df.columns.str.strip()
 complaint_col = next((c for c in df.columns if "complaint" in c.lower()), None)
 df[complaint_col] = df[complaint_col].astype(str)
 
-# -------------------- HELPERS --------------------
-def get_category(text):
-    t = str(text).lower()
+# -------------------- 🔥 FIXED CATEGORY ENGINE (IMPORTANT FIX) --------------------
+def clean_text(text):
+    return re.sub(r'[^a-zA-Z ]', ' ', str(text).lower())
 
-    if "road" in t or "pothole" in t or "street" in t:
+def get_category(text):
+    t = clean_text(text)
+
+    # STRICT PRIORITY RULES (NO OVERLAP BUG NOW)
+
+    road_keywords = ["road", "pothole", "street", "highway", "damaged road"]
+    water_keywords = ["water", "pipeline", "leak", "tap", "drainage"]
+    garbage_keywords = ["garbage", "waste", "trash", "dustbin"]
+    electric_keywords = ["electric", "power", "light", "current", "transformer"]
+
+    if any(k in t for k in road_keywords):
         return "Road"
-    elif "water" in t or "leak" in t or "pipeline" in t:
+    elif any(k in t for k in water_keywords):
         return "Water"
-    elif "garbage" in t or "waste" in t:
+    elif any(k in t for k in garbage_keywords):
         return "Garbage"
-    elif "electric" in t or "power" in t:
+    elif any(k in t for k in electric_keywords):
         return "Electricity"
     else:
         return "Other"
 
+# -------------------- CHATBOT (IMPROVED LOGIC) --------------------
 def chatbot(msg):
-    m = msg.lower()
+    m = clean_text(msg)
 
     if any(x in m for x in ["hi", "hello", "hey"]):
         return "👋 Hello! I am your complaint assistant."
+
     if "road" in m:
-        return "🛣️ Road complaint registered."
+        return "🛣️ Road issue registered successfully."
+
     if "water" in m:
-        return "💧 Water complaint registered."
+        return "💧 Water issue registered successfully."
+
     if "electric" in m:
-        return "⚡ Electricity complaint registered."
-    return "📌 Complaint recorded."
+        return "⚡ Electricity issue registered successfully."
+
+    if "status" in m:
+        return "📊 Check Dashboard tab for complaint status."
+
+    return "📌 Complaint has been recorded in the system."
 
 # -------------------- UI --------------------
 st.title("🏛️ Smart Municipal Complaint System")
@@ -139,6 +158,7 @@ with tabs[0]:
         pred = model.predict(X)
         prediction = le.inverse_transform(pred)[0]
 
+        # ✅ FIXED CATEGORY (BUG SOLVED HERE)
         category = get_category(text)
 
         try:
@@ -152,7 +172,7 @@ with tabs[0]:
 
         conn.commit()
 
-        st.success("Complaint Registered")
+        st.success("Complaint Registered Successfully")
 
         col1, col2 = st.columns(2)
         col1.metric("Prediction", prediction)
@@ -220,21 +240,3 @@ with tabs[3]:
 
     for r, m in st.session_state.chat:
         st.write(f"**{r}:** {m}")
-
-# -------------------- 🚀 NEXT LEVEL SECTION (ADDED ONLY) --------------------
-st.markdown("""
----
-## 🚀 NEXT LEVEL (if you want)
-
-Say:
-
-👉 **“make it startup level UI”**
-
-I will transform this into:
-
-ChatGPT-style UI  
-SaaS dashboard  
-Animated sidebar  
-Real product-grade UX  
-Portfolio + placement ready system 🔥
-""")
