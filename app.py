@@ -5,72 +5,28 @@ import pandas as pd
 import sqlite3
 import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
+import plotly.express as px
 
 st.set_page_config(page_title="Smart Complaint System", layout="wide")
 
-# -------------------- PREMIUM UI (ADDED) --------------------
+# -------------------- PREMIUM UI --------------------
 st.markdown("""
 <style>
-
-/* Background */
 .stApp {
     background: linear-gradient(135deg, #0f172a, #1e293b, #0f172a);
-    color: #ffffff;
-    font-family: 'Segoe UI', sans-serif;
+    color: white;
 }
 
-/* Title */
-h1, h2, h3 {
-    color: #ffffff !important;
-}
-
-/* Card style */
-div[data-testid="stDataFrame"] {
-    background: rgba(255,255,255,0.05);
-    border-radius: 12px;
-    padding: 10px;
-    backdrop-filter: blur(10px);
-}
-
-/* Buttons */
 .stButton button {
     background: linear-gradient(90deg, #4f46e5, #06b6d4);
     color: white;
     border-radius: 10px;
-    padding: 8px 16px;
-    border: none;
     transition: 0.3s;
 }
 
 .stButton button:hover {
     transform: scale(1.05);
-    box-shadow: 0px 4px 20px rgba(0,0,0,0.3);
 }
-
-/* Sidebar */
-section[data-testid="stSidebar"] {
-    background: rgba(15, 23, 42, 0.9);
-}
-
-/* Metrics */
-[data-testid="metric-container"] {
-    background: rgba(255,255,255,0.08);
-    border-radius: 12px;
-    padding: 15px;
-    box-shadow: 0px 4px 20px rgba(0,0,0,0.2);
-}
-
-/* Tabs */
-.stTabs [data-baseweb="tab-list"] {
-    gap: 10px;
-}
-
-.stTabs [data-baseweb="tab"] {
-    background: rgba(255,255,255,0.08);
-    padding: 10px 20px;
-    border-radius: 10px;
-}
-
 </style>
 """, unsafe_allow_html=True)
 
@@ -121,13 +77,10 @@ if not st.session_state.logged_in:
 
 # -------------------- SIDEBAR --------------------
 st.sidebar.title("📊 Dashboard")
-st.sidebar.write(f"👤 Logged in as: {st.session_state.user}")
-st.sidebar.markdown("### 👨‍💻 Developer")
-st.sidebar.write("Jinit Dave")
+st.sidebar.write(f"👤 {st.session_state.user}")
 
 if st.sidebar.button("Logout"):
     st.session_state.logged_in = False
-    st.session_state.user = ""
     st.rerun()
 
 # -------------------- LOAD --------------------
@@ -154,27 +107,10 @@ def clean_category(val):
     elif "electric" in val: return "Electricity"
     return "Other"
 
-def safe_confidence(val):
-    try:
-        val = float(val)
-        if val <= 0:
-            return np.random.uniform(55, 75)
-        return val
-    except:
-        return np.random.uniform(55, 75)
-
 def ensure_columns(df):
     if "status" not in df.columns:
         df["status"] = "NEW"
     return df
-
-def confidence_label(conf):
-    if conf >= 75:
-        return "🟢 High"
-    elif conf >= 50:
-        return "🟡 Medium"
-    else:
-        return "🔴 Low"
 
 # -------------------- UI --------------------
 st.title("🏛️ Smart Municipal Complaint System")
@@ -187,40 +123,23 @@ with tabs[0]:
     text = st.text_area("Enter your complaint")
 
     if st.button("Submit Complaint"):
-        if text.strip():
 
-            X = vectorizer.transform([text])
-            pred = model.predict(X)
-            prediction = le.inverse_transform(pred)[0]
-            cat = clean_category(prediction)
+        X = vectorizer.transform([text])
+        pred = model.predict(X)
+        prediction = le.inverse_transform(pred)[0]
+        cat = clean_category(prediction)
 
-            try:
-                conf = round(model.predict_proba(X).max() * 100, 2)
-            except:
-                conf = np.random.uniform(60, 80)
+        try:
+            conf = round(model.predict_proba(X).max() * 100, 2)
+        except:
+            conf = np.random.uniform(60, 80)
 
-            c.execute("""
-                INSERT INTO complaints (user, complaint, prediction, category, confidence)
-                VALUES (?, ?, ?, ?, ?)
-            """, (st.session_state.user, text, prediction, cat, str(conf)))
+        c.execute("""
+            INSERT INTO complaints VALUES (?, ?, ?, ?, ?)
+        """, (st.session_state.user, text, prediction, cat, str(conf)))
 
-            conn.commit()
-
-            st.success("✅ Complaint Registered")
-
-            col1, col2 = st.columns(2)
-            col1.metric("Category", cat)
-            col2.metric("Confidence", confidence_label(conf))
-
-            st.markdown("### 🔍 Similar Complaints")
-
-            X_all = vectorizer.transform(df[complaint_col])
-            X_input = vectorizer.transform([text])
-
-            sim = cosine_similarity(X_input, X_all)[0]
-            idx = np.argsort(sim)[-5:][::-1]
-
-            st.dataframe(df.iloc[idx], use_container_width=True)
+        conn.commit()
+        st.success("Complaint Registered")
 
 # ================== DASHBOARD ==================
 with tabs[1]:
@@ -230,21 +149,29 @@ with tabs[1]:
     if not saved.empty:
 
         saved["category"] = saved["category"].apply(clean_category)
-        saved["confidence"] = saved["confidence"].apply(safe_confidence)
-
-        saved = ensure_columns(saved)
 
         col1, col2, col3 = st.columns(3)
-        col1.metric("Total Complaints", len(saved))
-        col2.metric("Avg Confidence", round(saved["confidence"].mean(), 2))
-        col3.metric("Open Cases", len(saved[saved["status"] == "NEW"]))
+        col1.metric("Total", len(saved))
+        col2.metric("Categories", saved["category"].nunique())
+        col3.metric("Users", saved["user"].nunique())
 
-        st.dataframe(saved, use_container_width=True)
+        # -------- IMPROVED FILTER --------
+        st.markdown("### 🔎 Filter Complaints")
 
-        cat = st.selectbox("Filter by Category", saved["category"].unique())
-        st.dataframe(saved[saved["category"] == cat], use_container_width=True)
+        categories = st.multiselect(
+            "Select Category",
+            saved["category"].unique(),
+            default=list(saved["category"].unique())
+        )
 
-# ================== ANALYTICS ==================
+        filtered = saved[saved["category"].isin(categories)]
+
+        if st.button("Reset Filter"):
+            filtered = saved
+
+        st.dataframe(filtered, use_container_width=True)
+
+# ================== ANALYTICS (POWER BI STYLE) ==================
 with tabs[2]:
 
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
@@ -252,18 +179,34 @@ with tabs[2]:
     if not saved.empty:
 
         saved["category"] = saved["category"].apply(clean_category)
-        saved["confidence"] = saved["confidence"].apply(safe_confidence)
 
-        saved = ensure_columns(saved)
+        # -------- KPI CARDS --------
+        col1, col2, col3 = st.columns(3)
 
-        st.markdown("### 📊 Category Distribution")
-        st.bar_chart(saved["category"].value_counts())
+        col1.metric("Total Complaints", len(saved))
+        col2.metric("Categories", saved["category"].nunique())
+        col3.metric("Top Category", saved["category"].value_counts().idxmax())
 
-        st.markdown("### 📈 Confidence Trend")
-        st.line_chart(saved["confidence"])
+        # -------- PIE CHART --------
+        st.markdown("### 🥧 Category Distribution")
 
-        st.markdown("### 📌 Status Distribution")
-        st.bar_chart(saved["status"].value_counts())
+        pie = px.pie(
+            saved,
+            names="category",
+            title="Complaint Share by Category"
+        )
+        st.plotly_chart(pie, use_container_width=True)
+
+        # -------- BAR CHART --------
+        st.markdown("### 📊 Category Count")
+
+        bar = px.bar(
+            saved["category"].value_counts().reset_index(),
+            x="index",
+            y="category",
+            labels={"index": "Category", "category": "Count"}
+        )
+        st.plotly_chart(bar, use_container_width=True)
 
 # ================== CHATBOT ==================
 with tabs[3]:
@@ -271,24 +214,27 @@ with tabs[3]:
     if "chat" not in st.session_state:
         st.session_state.chat = []
 
-    msg = st.text_input("Ask anything...")
+    col1, col2 = st.columns([3,1])
+
+    msg = col1.text_input("Ask anything...")
+
+    # -------- DELETE CHAT --------
+    if col2.button("🗑️ Clear Chat"):
+        st.session_state.chat = []
 
     if msg:
         st.session_state.chat.append(("You", msg))
 
         m = msg.lower()
 
-        if any(x in m for x in ["hi", "hello", "hey"]):
-            reply = "Hey 👋 How can I help you today?"
+        if "hello" in m:
+            reply = "Hey 👋 How can I help?"
         elif "water" in m:
-            reply = "💧 Water issue detected. Contact local authority."
+            reply = "💧 Water issue detected"
         elif "road" in m:
-            reply = "🛣️ Road issue noted. Expected resolution: few days."
-        elif "status" in m:
-            reply = "📊 Check Dashboard tab for complaint status."
+            reply = "🛣️ Road issue logged"
         else:
-            sample = df.sample(1)[complaint_col].values[0]
-            reply = f"Here’s a similar complaint:\n{sample}"
+            reply = "I found something similar from dataset."
 
         st.session_state.chat.append(("Bot", reply))
 
