@@ -8,6 +8,72 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 st.set_page_config(page_title="Smart Complaint System", layout="wide")
 
+# -------------------- PREMIUM UI (ADDED) --------------------
+st.markdown("""
+<style>
+
+/* Background */
+.stApp {
+    background: linear-gradient(135deg, #0f172a, #1e293b, #0f172a);
+    color: #ffffff;
+    font-family: 'Segoe UI', sans-serif;
+}
+
+/* Title */
+h1, h2, h3 {
+    color: #ffffff !important;
+}
+
+/* Card style */
+div[data-testid="stDataFrame"] {
+    background: rgba(255,255,255,0.05);
+    border-radius: 12px;
+    padding: 10px;
+    backdrop-filter: blur(10px);
+}
+
+/* Buttons */
+.stButton button {
+    background: linear-gradient(90deg, #4f46e5, #06b6d4);
+    color: white;
+    border-radius: 10px;
+    padding: 8px 16px;
+    border: none;
+    transition: 0.3s;
+}
+
+.stButton button:hover {
+    transform: scale(1.05);
+    box-shadow: 0px 4px 20px rgba(0,0,0,0.3);
+}
+
+/* Sidebar */
+section[data-testid="stSidebar"] {
+    background: rgba(15, 23, 42, 0.9);
+}
+
+/* Metrics */
+[data-testid="metric-container"] {
+    background: rgba(255,255,255,0.08);
+    border-radius: 12px;
+    padding: 15px;
+    box-shadow: 0px 4px 20px rgba(0,0,0,0.2);
+}
+
+/* Tabs */
+.stTabs [data-baseweb="tab-list"] {
+    gap: 10px;
+}
+
+.stTabs [data-baseweb="tab"] {
+    background: rgba(255,255,255,0.08);
+    padding: 10px 20px;
+    border-radius: 10px;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
 # -------------------- DATABASE --------------------
 conn = sqlite3.connect("complaints.db", check_same_thread=False)
 c = conn.cursor()
@@ -133,7 +199,6 @@ with tabs[0]:
             except:
                 conf = np.random.uniform(60, 80)
 
-            # ✅ SAFE INSERT (FIXED)
             c.execute("""
                 INSERT INTO complaints (user, complaint, prediction, category, confidence)
                 VALUES (?, ?, ?, ?, ?)
@@ -147,7 +212,6 @@ with tabs[0]:
             col1.metric("Category", cat)
             col2.metric("Confidence", confidence_label(conf))
 
-            # -------- SIMILAR --------
             st.markdown("### 🔍 Similar Complaints")
 
             X_all = vectorizer.transform(df[complaint_col])
