@@ -10,22 +10,34 @@ import re
 
 st.set_page_config(page_title="Smart Complaint System", layout="wide")
 
-# -------------------- UI --------------------
+# -------------------- PREMIUM UI --------------------
 st.markdown("""
 <style>
 .stApp {
-    background: linear-gradient(135deg, #0f172a, #1e293b, #0f172a);
+    background: radial-gradient(circle at top, #0f172a, #020617);
     color: white;
 }
+
 .stButton button {
     background: linear-gradient(90deg, #4f46e5, #06b6d4);
-    color: white;
     border-radius: 10px;
+    color: white;
+    transition: 0.3s;
+}
+.stButton button:hover {
+    transform: scale(1.05);
+}
+
+/* Card style */
+div[data-testid="stMetric"] {
+    background: rgba(255,255,255,0.06);
+    padding: 15px;
+    border-radius: 12px;
 }
 </style>
 """, unsafe_allow_html=True)
 
-# -------------------- DATABASE --------------------
+# -------------------- DB --------------------
 conn = sqlite3.connect("complaints.db", check_same_thread=False)
 c = conn.cursor()
 
@@ -71,7 +83,7 @@ if not st.session_state.logged_in:
     st.stop()
 
 # -------------------- SIDEBAR --------------------
-st.sidebar.title("📊 Dashboard")
+st.sidebar.title("📊 Smart Dashboard")
 st.sidebar.write(f"👤 {st.session_state.user}")
 
 st.sidebar.markdown("### 👨‍💻 Developer")
@@ -81,7 +93,7 @@ if st.sidebar.button("Logout"):
     st.session_state.logged_in = False
     st.rerun()
 
-# -------------------- LOAD --------------------
+# -------------------- LOAD MODEL --------------------
 vectorizer = pickle.load(open("tfidf_vectorizer.pkl", "rb"))
 le = pickle.load(open("label_encoder.pkl", "rb"))
 model = pickle.load(open("logistic_regression_model.pkl", "rb"))
@@ -96,51 +108,50 @@ df.columns = df.columns.str.strip()
 complaint_col = next((c for c in df.columns if "complaint" in c.lower()), None)
 df[complaint_col] = df[complaint_col].astype(str)
 
-# -------------------- 🔥 FIXED CATEGORY ENGINE (IMPORTANT FIX) --------------------
-def clean_text(text):
-    return re.sub(r'[^a-zA-Z ]', ' ', str(text).lower())
+# -------------------- FIXED CATEGORY ENGINE --------------------
+def clean_text(t):
+    return re.sub(r'[^a-zA-Z ]', ' ', str(t).lower())
 
 def get_category(text):
     t = clean_text(text)
 
-    # STRICT PRIORITY RULES (NO OVERLAP BUG NOW)
+    road = ["road", "pothole", "street", "highway", "bridge"]
+    water = ["water", "leak", "pipeline", "drain", "tap"]
+    garbage = ["garbage", "waste", "trash", "dustbin"]
+    electric = ["electric", "power", "light", "current"]
 
-    road_keywords = ["road", "pothole", "street", "highway", "damaged road"]
-    water_keywords = ["water", "pipeline", "leak", "tap", "drainage"]
-    garbage_keywords = ["garbage", "waste", "trash", "dustbin"]
-    electric_keywords = ["electric", "power", "light", "current", "transformer"]
-
-    if any(k in t for k in road_keywords):
+    # STRICT PRIORITY FIX (ROAD FIRST)
+    if any(k in t for k in road):
         return "Road"
-    elif any(k in t for k in water_keywords):
+    if any(k in t for k in water):
         return "Water"
-    elif any(k in t for k in garbage_keywords):
+    if any(k in t for k in garbage):
         return "Garbage"
-    elif any(k in t for k in electric_keywords):
+    if any(k in t for k in electric):
         return "Electricity"
-    else:
-        return "Other"
 
-# -------------------- CHATBOT (IMPROVED LOGIC) --------------------
+    return "Other"
+
+# -------------------- CHATBOT (IMPROVED MEMORY STYLE) --------------------
 def chatbot(msg):
     m = clean_text(msg)
 
-    if any(x in m for x in ["hi", "hello", "hey"]):
-        return "👋 Hello! I am your complaint assistant."
+    if "hello" in m or "hi" in m:
+        return "👋 Hey! I’m your municipal assistant."
 
     if "road" in m:
-        return "🛣️ Road issue registered successfully."
+        return "🛣️ Road complaint registered successfully."
 
     if "water" in m:
-        return "💧 Water issue registered successfully."
+        return "💧 Water complaint registered successfully."
 
     if "electric" in m:
-        return "⚡ Electricity issue registered successfully."
+        return "⚡ Electricity issue registered."
 
     if "status" in m:
-        return "📊 Check Dashboard tab for complaint status."
+        return "📊 Check Dashboard for status."
 
-    return "📌 Complaint has been recorded in the system."
+    return "📌 Complaint stored successfully."
 
 # -------------------- UI --------------------
 st.title("🏛️ Smart Municipal Complaint System")
@@ -158,7 +169,7 @@ with tabs[0]:
         pred = model.predict(X)
         prediction = le.inverse_transform(pred)[0]
 
-        # ✅ FIXED CATEGORY (BUG SOLVED HERE)
+        # FIXED CATEGORY
         category = get_category(text)
 
         try:
@@ -172,7 +183,7 @@ with tabs[0]:
 
         conn.commit()
 
-        st.success("Complaint Registered Successfully")
+        st.success("Complaint Registered")
 
         col1, col2 = st.columns(2)
         col1.metric("Prediction", prediction)
@@ -195,27 +206,37 @@ with tabs[1]:
 
     if not saved.empty:
 
+        # FIX DISPLAY ISSUE (NORMALIZE OLD DATA)
+        saved["category"] = saved["category"].apply(lambda x: x if x in ["Road","Water","Garbage","Electricity"] else "Other")
+
         col1, col2, col3 = st.columns(3)
-        col1.metric("Total", len(saved))
+        col1.metric("Total Complaints", len(saved))
         col2.metric("Users", saved["user"].nunique())
         col3.metric("Top Category", saved["category"].value_counts().idxmax())
 
         st.dataframe(saved, use_container_width=True)
 
-# ================== ANALYTICS ==================
+# ================== ANALYTICS (STARTUP STYLE) ==================
 with tabs[2]:
 
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
     if not saved.empty:
 
-        st.markdown("### 🥧 Category Distribution")
+        st.markdown("## 📊 Analytics Dashboard")
+
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total", len(saved))
+        col2.metric("Categories", saved["category"].nunique())
+        col3.metric("Top", saved["category"].value_counts().idxmax())
+
+        st.markdown("### 🥧 Distribution")
         fig1, ax1 = plt.subplots()
         saved["category"].value_counts().plot.pie(autopct="%1.1f%%", ax=ax1)
         ax1.set_ylabel("")
         st.pyplot(fig1)
 
-        st.markdown("### 📊 Category Count")
+        st.markdown("### 📊 Volume")
         fig2, ax2 = plt.subplots()
         saved["category"].value_counts().plot.bar(ax=ax2)
         st.pyplot(fig2)
@@ -235,8 +256,7 @@ with tabs[3]:
 
     if msg:
         st.session_state.chat.append(("You", msg))
-        reply = chatbot(msg)
-        st.session_state.chat.append(("Bot", reply))
+        st.session_state.chat.append(("Bot", chatbot(msg)))
 
     for r, m in st.session_state.chat:
         st.write(f"**{r}:** {m}")
