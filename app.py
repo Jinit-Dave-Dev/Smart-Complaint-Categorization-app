@@ -4,7 +4,6 @@ import os
 import pandas as pd
 import sqlite3
 import numpy as np
-import time
 
 # -------------------- CONFIG --------------------
 st.set_page_config(page_title="Smart Complaint System", layout="wide")
@@ -13,6 +12,7 @@ st.set_page_config(page_title="Smart Complaint System", layout="wide")
 conn = sqlite3.connect("complaints.db", check_same_thread=False)
 c = conn.cursor()
 
+c.execute("CREATE TABLE IF NOT EXISTS users (username TEXT, password TEXT)")
 c.execute("""CREATE TABLE IF NOT EXISTS complaints (
     user TEXT,
     complaint TEXT,
@@ -21,6 +21,38 @@ c.execute("""CREATE TABLE IF NOT EXISTS complaints (
     status TEXT
 )""")
 conn.commit()
+
+# -------------------- SESSION --------------------
+if "logged" not in st.session_state:
+    st.session_state.logged = False
+if "user" not in st.session_state:
+    st.session_state.user = ""
+
+# -------------------- LOGIN --------------------
+def login():
+    st.title("🔐 Login")
+
+    user = st.text_input("Username")
+    pwd = st.text_input("Password", type="password")
+
+    if st.button("Login"):
+        c.execute("SELECT * FROM users WHERE username=? AND password=?", (user, pwd))
+        if c.fetchone():
+            st.session_state.logged = True
+            st.session_state.user = user
+            st.success("Login successful")
+            st.rerun()
+        else:
+            st.error("Invalid credentials")
+
+    if st.button("Register"):
+        c.execute("INSERT INTO users VALUES (?,?)", (user, pwd))
+        conn.commit()
+        st.success("Registered successfully")
+
+if not st.session_state.logged:
+    login()
+    st.stop()
 
 # -------------------- LOAD DATA --------------------
 file_path = "smart_complaints_dataset_250.csv"
@@ -53,132 +85,103 @@ def predict(text):
     X = vectorizer.transform([text])
     pred = model.predict(X)
     label = le.inverse_transform(pred)[0]
+
     try:
         prob = model.predict_proba(X).max()
         conf = round(prob * 100, 2)
     except:
-        conf = 50
+        conf = 0
+
     return label, conf
 
-# -------------------- STYLE --------------------
-st.markdown("""
-<style>
-.big-title {text-align:center;font-size:32px;font-weight:700;}
-.card {background:#111;padding:15px;border-radius:10px;margin:5px;}
-</style>
-""", unsafe_allow_html=True)
+# -------------------- UI --------------------
+st.title("🏛️ Smart Complaint System")
+st.sidebar.write(f"👤 {st.session_state.user}")
 
-st.markdown("<div class='big-title'>🏛️ Smart Complaint Categorization System</div>", unsafe_allow_html=True)
+if st.sidebar.button("Logout"):
+    st.session_state.logged = False
+    st.rerun()
 
-# -------------------- TABS --------------------
-tab1, tab2, tab3, tab4 = st.tabs(["📌 Complaint", "📊 Dashboard", "🤖 Chatbot", "📈 Analytics"])
+tab1, tab2, tab3, tab4 = st.tabs(["Complaint", "Dashboard", "Chatbot", "Analytics"])
 
-# =========================================================
-# 📌 TAB 1: COMPLAINT
-# =========================================================
+# -------------------- TAB 1 --------------------
 with tab1:
     st.subheader("Register Complaint")
 
-    user_input = st.text_area("Enter your complaint")
+    text = st.text_area("Enter complaint")
 
-    if st.button("Submit Complaint"):
-        if user_input.strip():
-
-            pred, conf = predict(user_input)
-            category = map_category(user_input)
+    if st.button("Submit"):
+        if text.strip():
+            pred, conf = predict(text)
+            cat = map_category(text)
 
             c.execute("INSERT INTO complaints VALUES (?,?,?,?,?)",
-                      ("User", user_input, category, str(conf), "NEW"))
+                      (st.session_state.user, text, cat, str(conf), "NEW"))
             conn.commit()
 
-            st.success("✅ Complaint registered successfully")
+            st.success("Complaint registered")
 
-            new_df = pd.DataFrame({
-                "Complaint": [user_input],
-                "Category": [category],
+            st.dataframe(pd.DataFrame({
+                "Complaint": [text],
+                "Category": [cat],
                 "Confidence": [conf],
                 "Status": ["NEW"]
-            })
+            }))
 
-            st.dataframe(new_df)
-
-# =========================================================
-# 📊 TAB 2: DASHBOARD
-# =========================================================
+# -------------------- TAB 2 --------------------
 with tab2:
-    st.subheader("All Complaints")
+    st.subheader("Dashboard")
 
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
     if not saved.empty:
-        st.dataframe(saved, use_container_width=True)
+        st.dataframe(saved)
 
-        st.subheader("Similar Complaints")
+        cat = st.selectbox("Filter", saved["category"].unique())
+        sim = df[df[category_col] == cat]
 
-        selected = st.selectbox("Filter by category", saved["category"].unique())
-
-        sim = df[df[category_col] == selected]
-
+        st.write("Similar complaints")
         st.dataframe(sim.head(5))
 
-# =========================================================
-# 🤖 TAB 3: CHATBOT
-# =========================================================
+# -------------------- TAB 3 --------------------
 with tab3:
-    st.subheader("AI Assistant")
+    st.subheader("Chatbot")
 
     if "chat" not in st.session_state:
         st.session_state.chat = []
 
-    def bot_reply(text):
-        t = text.lower()
+    def reply(t):
+        t = t.lower()
+        if "hi" in t:
+            return "Hello 👋"
+        if "water" in t:
+            return "Water issue noted 💧"
+        if "road" in t:
+            return "Road issue noted 🛣️"
+        return "Please explain more"
 
-        if "hi" in t or "hello" in t:
-            return "Hey 👋 How can I help you today?"
-
-        elif "water" in t:
-            return "💧 Please check your local supply office or report leakage."
-
-        elif "road" in t:
-            return "🛣️ Road issues are forwarded to municipality engineers."
-
-        elif "garbage" in t:
-            return "🗑️ Garbage collection team will be notified."
-
-        else:
-            return "I understand your concern. Please provide more details."
-
-    msg = st.text_input("Type message")
+    msg = st.text_input("Message")
 
     if msg:
         st.session_state.chat.append(("You", msg))
-        reply = bot_reply(msg)
-        st.session_state.chat.append(("Bot", reply))
+        st.session_state.chat.append(("Bot", reply(msg)))
 
-    for sender, text in st.session_state.chat:
-        if sender == "You":
-            st.markdown(f"**You:** {text}")
-        else:
-            st.markdown(f"**Bot:** {text}")
+    for s, m in st.session_state.chat:
+        st.write(f"{s}: {m}")
 
-# =========================================================
-# 📈 TAB 4: ANALYTICS
-# =========================================================
+# -------------------- TAB 4 --------------------
 with tab4:
-    st.subheader("Analytics Dashboard")
+    st.subheader("Analytics")
 
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
     if not saved.empty:
 
-        category_filter = st.selectbox("Select Category", ["All"] + list(saved["category"].unique()))
+        saved["confidence"] = pd.to_numeric(saved["confidence"], errors="coerce")
+        saved["confidence"] = saved["confidence"].fillna(0)
 
-        if category_filter != "All":
-            saved = saved[saved["category"] == category_filter]
-
-        st.write("### Complaint Distribution")
+        st.write("Category Distribution")
         st.bar_chart(saved["category"].value_counts())
 
-        st.write("### Confidence Distribution")
-        saved["confidence"] = saved["confidence"].astype(float)
+        st.write("Confidence")
         st.bar_chart(saved["confidence"])
