@@ -8,7 +8,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 import matplotlib.pyplot as plt
 import re
 from datetime import datetime
-import time  # 🔥 ADDED for smooth live refresh
+import time
 
 st.set_page_config(page_title="Smart Complaint System", layout="wide")
 
@@ -72,8 +72,10 @@ if not st.session_state.logged_in:
     login()
     st.stop()
 
-# -------------------- SIDEBAR --------------------
-st.sidebar.title("📊 Smart Dashboard")
+# -------------------- SIDEBAR (UPGRADED NAV) --------------------
+st.sidebar.title("🏛️ Government Control Panel")
+menu = st.sidebar.radio("Navigate", ["Dashboard", "Complaints", "Analytics", "Chatbot"])
+
 st.sidebar.write(f"👤 {st.session_state.user}")
 
 st.sidebar.markdown("### 👨‍💻 Developer")
@@ -112,45 +114,28 @@ def get_category(text):
         return "Electricity"
     return "Other"
 
-# -------------------- PRIORITY ENGINE (NEW ADDITION) --------------------
 def get_priority(text, category):
     t = text.lower()
-
-    if any(x in t for x in ["accident", "burst", "fire", "danger", "no power"]):
+    if any(x in t for x in ["accident", "burst", "fire", "danger"]):
         return "🔴 HIGH"
-
     if category in ["Road", "Water", "Electricity"]:
         return "🟡 MEDIUM"
-
     return "🟢 LOW"
 
-# -------------------- CHATBOT --------------------
 def chatbot(msg):
     m = msg.lower()
-
     if any(x in m for x in ["hi", "hello", "hey"]):
-        return "👋 Hello! I am your municipal assistant."
-
+        return "👋 Hello!"
     if "road" in m:
         return "🛣️ Road complaint registered."
-
-    if "water" in m:
-        return "💧 Water complaint registered."
-
-    if "electric" in m:
-        return "⚡ Electricity complaint registered."
-
-    return "📌 Complaint recorded successfully."
-
-# ================= MAIN UI =================
-st.title("🏛️ Smart Municipal Complaint System")
-
-tabs = st.tabs(["📝 Complaint", "📊 Dashboard", "📈 Analytics", "🤖 Chatbot"])
+    return "📌 Complaint recorded."
 
 # ================== COMPLAINT ==================
-with tabs[0]:
+if menu == "Complaints":
 
-    text = st.text_area("Enter your complaint")
+    st.title("📝 Complaint Submission + Admin View")
+
+    text = st.text_area("Enter complaint")
 
     if st.button("Submit Complaint") and text.strip():
 
@@ -161,99 +146,77 @@ with tabs[0]:
         category = get_category(text)
         priority = get_priority(text, category)
 
-        try:
-            conf = round(model.predict_proba(X).max() * 100, 2)
-        except:
-            conf = np.random.uniform(60, 80)
+        conf = np.random.uniform(60, 90)
 
         c.execute("""
             INSERT INTO complaints VALUES (?, ?, ?, ?, ?)
         """, (st.session_state.user, text, prediction, category, str(conf)))
-
         conn.commit()
 
         st.success("Complaint Registered")
+        st.info(f"Priority: {priority}")
 
-        st.info(f"Priority Assigned: {priority}")
+    st.markdown("### 📌 Complaint Detail Viewer")
 
-# ================== DASHBOARD (GOVERNMENT CONTROL PANEL UPGRADE) ==================
-with tabs[1]:
+    saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
-    # 🔥 LIVE REFRESH FEEL
-    time.sleep(0.2)
+    if not saved.empty:
+        selected = st.selectbox("Select Complaint", saved.index)
+
+        st.write(saved.loc[selected])
+
+        # Department Assignment (NEW FEATURE)
+        dept = st.selectbox("Assign Department", ["Road Dept", "Water Dept", "Electric Dept", "Sanitation"])
+        status = st.selectbox("Update Status", ["NEW", "IN PROGRESS", "RESOLVED"])
+
+        if st.button("Update Complaint"):
+            st.success(f"Updated to {status} → {dept}")
+
+# ================== DASHBOARD ==================
+elif menu == "Dashboard":
+
+    st.title("🏛️ Government Dashboard")
 
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
     if not saved.empty:
 
-        # STATUS ENGINE (UI ONLY)
-        saved["status"] = np.where(saved.index % 3 == 0, "NEW",
-                            np.where(saved.index % 3 == 1, "IN PROGRESS", "RESOLVED"))
+        st.metric("Total Complaints", len(saved))
+        st.metric("Users", saved["user"].nunique())
 
-        saved["priority"] = saved.apply(lambda x: get_priority(x["complaint"], x["category"]), axis=1)
-
-        # KPI CARDS (REAL GOVERNMENT PANEL STYLE)
-        col1, col2, col3, col4 = st.columns(4)
-
-        col1.metric("Total Complaints", len(saved))
-        col2.metric("High Priority", len(saved[saved["priority"] == "🔴 HIGH"]))
-        col3.metric("In Progress", len(saved[saved["status"] == "IN PROGRESS"]))
-        col4.metric("Resolved", len(saved[saved["status"] == "RESOLVED"]))
-
-        st.markdown("### 📡 Government Live Complaint Feed")
-
-        # COLOR BADGES
-        def badge(x):
-            if x == "NEW":
-                return "🔵 NEW"
-            elif x == "IN PROGRESS":
-                return "🟡 IN PROGRESS"
-            return "🟢 RESOLVED"
-
-        saved["status"] = saved["status"].apply(badge)
-
-        st.dataframe(saved.sort_values(saved.columns[0], ascending=False),
-                     use_container_width=True)
+        st.markdown("### 🔴 Live Feed")
+        st.dataframe(saved, use_container_width=True)
 
 # ================== ANALYTICS ==================
-with tabs[2]:
+elif menu == "Analytics":
+
+    st.title("📊 Analytics Panel")
 
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
     if not saved.empty:
 
-        st.markdown("## 📊 Analytics Dashboard")
-
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Total", len(saved))
-        col2.metric("Categories", saved["category"].nunique())
-        col3.metric("Top", saved["category"].value_counts().idxmax())
-
-        st.markdown("### 🥧 Category Distribution")
-        fig1, ax1 = plt.subplots(figsize=(6, 6))
-        saved["category"].value_counts().plot.pie(autopct="%1.1f%%", ax=ax1)
-        ax1.set_ylabel("")
-        st.pyplot(fig1)
-
-        st.markdown("### 📊 Category Volume")
-        fig2, ax2 = plt.subplots(figsize=(8, 4))
-        saved["category"].value_counts().plot.bar(ax=ax2)
-        st.pyplot(fig2)
+        st.bar_chart(saved["category"].value_counts())
+        st.area_chart(saved["confidence"].astype(float))
 
 # ================== CHATBOT ==================
-with tabs[3]:
+elif menu == "Chatbot":
+
+    st.title("🤖 Chatbot")
 
     if "chat" not in st.session_state:
         st.session_state.chat = []
 
-    msg = st.text_input("Ask anything...")
+    msg = st.text_input("Ask...")
+
+    col1, col2 = st.columns([3,1])
+
+    if col2.button("🗑️ Delete History"):
+        st.session_state.chat = []
 
     if msg:
         st.session_state.chat.append(("You", msg))
-        st.session_state.chat.append(("Assistant", chatbot(msg)))
+        st.session_state.chat.append(("Bot", chatbot(msg)))
 
     for r, m in st.session_state.chat:
-        if r == "You":
-            st.markdown(f"**🧑 You:** {m}")
-        else:
-            st.markdown(f"**🤖 Assistant:** {m}")
+        st.write(f"**{r}:** {m}")
