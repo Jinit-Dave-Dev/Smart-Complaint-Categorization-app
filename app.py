@@ -26,25 +26,6 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# -------------------- 🚀 ONLY ADDITION (STARTUP UPGRADE BANNER) --------------------
-st.markdown("""
-<div style="
-    padding: 18px;
-    border-radius: 12px;
-    background: linear-gradient(90deg, #0ea5e9, #6366f1);
-    color: white;
-    text-align: center;
-    font-weight: 600;
-    margin-bottom: 20px;
-">
-🚀 IF YOU WANT NEXT STEP → <b>upgrade it to government SaaS level</b><br><br>
-
-👉 I will: redesign architecture • add admin panel • add status workflow • add priority engine • add sentiment AI • make it portfolio-ready system
-<br><br>
-<b>Result: real-world government-grade SaaS system 🚀</b>
-</div>
-""", unsafe_allow_html=True)
-
 # -------------------- DATABASE --------------------
 conn = sqlite3.connect("complaints.db", check_same_thread=False)
 c = conn.cursor()
@@ -135,18 +116,21 @@ def chatbot(msg):
     m = msg.lower()
 
     if "hello" in m or "hi" in m:
-        return "👋 Hello! I am your municipal assistant."
+        return "Hello! How can I help you?"
 
     if "road" in m:
-        return "🛣️ Road complaint registered."
+        return "Road complaint registered."
 
     if "water" in m:
-        return "💧 Water complaint registered."
+        return "Water complaint registered."
 
     if "electric" in m:
-        return "⚡ Electricity complaint registered."
+        return "Electricity complaint registered."
 
-    return "📌 Complaint recorded."
+    if "status" in m:
+        return "Check dashboard for status."
+
+    return "Complaint recorded successfully."
 
 # -------------------- UI --------------------
 st.title("🏛️ Smart Municipal Complaint System")
@@ -204,13 +188,13 @@ with tabs[2]:
 
     if not saved.empty:
 
-        st.markdown("### 🥧 Category Distribution")
+        st.markdown("### Category Distribution")
         fig1, ax1 = plt.subplots()
         saved["category"].value_counts().plot.pie(autopct="%1.1f%%", ax=ax1)
         ax1.set_ylabel("")
         st.pyplot(fig1)
 
-        st.markdown("### 📊 Category Count")
+        st.markdown("### Category Count")
         fig2, ax2 = plt.subplots()
         saved["category"].value_counts().plot.bar(ax=ax2)
         st.pyplot(fig2)
@@ -225,7 +209,7 @@ with tabs[3]:
 
     msg = col1.text_input("Ask anything...")
 
-    if col2.button("🗑️ Clear Chat"):
+    if col2.button("Clear Chat"):
         st.session_state.chat = []
 
     if msg:
