@@ -3,83 +3,26 @@ import pickle
 import os
 import pandas as pd
 import sqlite3
-import time
 import numpy as np
+import time
 
-# -------------------- PAGE CONFIG --------------------
-st.set_page_config(page_title="Municipal Complaint System", layout="wide")
+# -------------------- CONFIG --------------------
+st.set_page_config(page_title="Smart Complaint System", layout="wide")
 
-# -------------------- DATABASE --------------------
+# -------------------- DB --------------------
 conn = sqlite3.connect("complaints.db", check_same_thread=False)
 c = conn.cursor()
 
-c.execute("CREATE TABLE IF NOT EXISTS users (username TEXT, password TEXT)")
 c.execute("""CREATE TABLE IF NOT EXISTS complaints (
     user TEXT,
     complaint TEXT,
-    prediction TEXT,
     category TEXT,
-    confidence TEXT
+    confidence TEXT,
+    status TEXT
 )""")
 conn.commit()
 
-# -------------------- SESSION --------------------
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-if "user" not in st.session_state:
-    st.session_state.user = ""
-
-# -------------------- LOGIN --------------------
-def login():
-    st.markdown("<h2 style='text-align:center;'>🔐 Login System</h2>", unsafe_allow_html=True)
-
-    username = st.text_input("Username")
-    password = st.text_input("Password", type="password")
-
-    if st.button("Login"):
-        c.execute("SELECT * FROM users WHERE username=? AND password=?", (username, password))
-        if c.fetchone():
-            st.session_state.logged_in = True
-            st.session_state.user = username
-            st.success("Login Successful")
-            st.rerun()
-        else:
-            st.error("Invalid Credentials")
-
-    if st.button("Register"):
-        c.execute("INSERT INTO users VALUES (?,?)", (username, password))
-        conn.commit()
-        st.success("Registered! Now login.")
-
-if not st.session_state.logged_in:
-    login()
-    st.stop()
-
-# -------------------- UI STYLE --------------------
-st.markdown("""
-<style>
-body {background: linear-gradient(135deg, #0f172a, #1e293b); color: white;}
-.card {background: rgba(255,255,255,0.05); padding:20px; border-radius:15px;}
-.chat-user {background:#4CAF50;padding:10px;border-radius:10px;margin:5px;text-align:right;color:black;}
-.chat-bot {background:#1e293b;padding:10px;border-radius:10px;margin:5px;}
-</style>
-""", unsafe_allow_html=True)
-
-# -------------------- SIDEBAR --------------------
-st.sidebar.title("📊 Dashboard")
-st.sidebar.write(f"👤 {st.session_state.user}")
-st.sidebar.write("👨‍💻 Jinit Dave")
-
-if st.sidebar.button("Logout"):
-    st.session_state.logged_in = False
-    st.rerun()
-
-model_choice = st.sidebar.selectbox(
-    "Model",
-    ["Gradient Boosting", "Logistic Regression", "Naive Bayes"]
-)
-
-# -------------------- DATA --------------------
+# -------------------- LOAD DATA --------------------
 file_path = "smart_complaints_dataset_250.csv"
 if not os.path.exists(file_path):
     file_path = "data/smart_complaints_dataset_250.csv"
@@ -87,92 +30,155 @@ if not os.path.exists(file_path):
 df = pd.read_csv(file_path)
 df.columns = df.columns.str.strip()
 
-complaint_col = next((c for c in df.columns if 'complaint' in c.lower()), None)
-category_col = next((c for c in df.columns if 'category' in c.lower()), None)
+complaint_col = [c for c in df.columns if "complaint" in c.lower() or "text" in c.lower()][0]
+category_col = [c for c in df.columns if "category" in c.lower() or "label" in c.lower()][0]
 
-# 🔥 FIX ERROR HERE
-df[complaint_col] = df[complaint_col].fillna("").astype(str)
+df[complaint_col] = df[complaint_col].astype(str)
 
-# -------------------- LOAD ML --------------------
+# -------------------- LOAD MODEL --------------------
 vectorizer = pickle.load(open("tfidf_vectorizer.pkl", "rb"))
+model = pickle.load(open("logistic_regression_model.pkl", "rb"))
 le = pickle.load(open("label_encoder.pkl", "rb"))
 
-model_files = {
-    "Gradient Boosting": "gradient_boosting_model.pkl",
-    "Logistic Regression": "logistic_regression_model.pkl",
-    "Naive Bayes": "naive_bayes_model.pkl"
-}
-
-# -------------------- FUNCTIONS --------------------
+# -------------------- HELPERS --------------------
 def map_category(text):
-    text = str(text).lower()
+    text = text.lower()
     if "water" in text: return "Water"
     if "road" in text: return "Road"
     if "garbage" in text: return "Garbage"
     if "electric" in text: return "Electricity"
     return "Other"
 
-def chatbot_response(msg):
-    msg = msg.lower()
-    if "hi" in msg or "hello" in msg:
-        return "Hello 👋 How can I help you?"
-    elif "how are you" in msg:
-        return "I'm working perfectly 🚀"
-    elif "water" in msg:
-        return "💧 Water issue detected. Try submitting complaint."
-    else:
-        return "🤖 I'm here to help with complaints or general questions."
+def predict(text):
+    X = vectorizer.transform([text])
+    pred = model.predict(X)
+    label = le.inverse_transform(pred)[0]
+    try:
+        prob = model.predict_proba(X).max()
+        conf = round(prob * 100, 2)
+    except:
+        conf = 50
+    return label, conf
+
+# -------------------- STYLE --------------------
+st.markdown("""
+<style>
+.big-title {text-align:center;font-size:32px;font-weight:700;}
+.card {background:#111;padding:15px;border-radius:10px;margin:5px;}
+</style>
+""", unsafe_allow_html=True)
+
+st.markdown("<div class='big-title'>🏛️ Smart Complaint Categorization System</div>", unsafe_allow_html=True)
 
 # -------------------- TABS --------------------
-tab1, tab2, tab3 = st.tabs(["📌 Complaint", "📊 Dashboard", "🤖 Chatbot"])
+tab1, tab2, tab3, tab4 = st.tabs(["📌 Complaint", "📊 Dashboard", "🤖 Chatbot", "📈 Analytics"])
 
-# ================= TAB 1 =================
+# =========================================================
+# 📌 TAB 1: COMPLAINT
+# =========================================================
 with tab1:
-    st.markdown("### Enter Complaint")
-    user_input = st.text_area("Write complaint")
+    st.subheader("Register Complaint")
 
-    if user_input:
-        model = pickle.load(open(model_files[model_choice], "rb"))
+    user_input = st.text_area("Enter your complaint")
 
-        X_new = vectorizer.transform([str(user_input)])  # 🔥 FIX
-        pred = model.predict(X_new)
-        prediction = le.inverse_transform(pred)[0]
+    if st.button("Submit Complaint"):
+        if user_input.strip():
 
-        category = map_category(user_input)
+            pred, conf = predict(user_input)
+            category = map_category(user_input)
 
-        st.markdown(f"<div class='card'>Prediction: {prediction}</div>", unsafe_allow_html=True)
-        st.markdown(f"<div class='card'>Category: {category}</div>", unsafe_allow_html=True)
+            c.execute("INSERT INTO complaints VALUES (?,?,?,?,?)",
+                      ("User", user_input, category, str(conf), "NEW"))
+            conn.commit()
 
-        # 🔥 DYNAMIC CHART
-        filtered = df[df[category_col] == prediction]
-        st.markdown("### 📊 Complaint Trends")
-        st.bar_chart(filtered[category_col].value_counts())
+            st.success("✅ Complaint registered successfully")
 
-# ================= TAB 2 =================
+            new_df = pd.DataFrame({
+                "Complaint": [user_input],
+                "Category": [category],
+                "Confidence": [conf],
+                "Status": ["NEW"]
+            })
+
+            st.dataframe(new_df)
+
+# =========================================================
+# 📊 TAB 2: DASHBOARD
+# =========================================================
 with tab2:
-    st.markdown("### Dashboard")
+    st.subheader("All Complaints")
 
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
     if not saved.empty:
-        st.bar_chart(saved["category"].value_counts())
+        st.dataframe(saved, use_container_width=True)
 
-# ================= TAB 3 =================
+        st.subheader("Similar Complaints")
+
+        selected = st.selectbox("Filter by category", saved["category"].unique())
+
+        sim = df[df[category_col] == selected]
+
+        st.dataframe(sim.head(5))
+
+# =========================================================
+# 🤖 TAB 3: CHATBOT
+# =========================================================
 with tab3:
-    st.markdown("### Chatbot")
+    st.subheader("AI Assistant")
 
     if "chat" not in st.session_state:
         st.session_state.chat = []
 
-    msg = st.text_input("Message")
+    def bot_reply(text):
+        t = text.lower()
+
+        if "hi" in t or "hello" in t:
+            return "Hey 👋 How can I help you today?"
+
+        elif "water" in t:
+            return "💧 Please check your local supply office or report leakage."
+
+        elif "road" in t:
+            return "🛣️ Road issues are forwarded to municipality engineers."
+
+        elif "garbage" in t:
+            return "🗑️ Garbage collection team will be notified."
+
+        else:
+            return "I understand your concern. Please provide more details."
+
+    msg = st.text_input("Type message")
 
     if msg:
-        reply = chatbot_response(msg)
         st.session_state.chat.append(("You", msg))
+        reply = bot_reply(msg)
         st.session_state.chat.append(("Bot", reply))
 
     for sender, text in st.session_state.chat:
         if sender == "You":
-            st.markdown(f"<div class='chat-user'>{text}</div>", unsafe_allow_html=True)
+            st.markdown(f"**You:** {text}")
         else:
-            st.markdown(f"<div class='chat-bot'>{text}</div>", unsafe_allow_html=True)
+            st.markdown(f"**Bot:** {text}")
+
+# =========================================================
+# 📈 TAB 4: ANALYTICS
+# =========================================================
+with tab4:
+    st.subheader("Analytics Dashboard")
+
+    saved = pd.read_sql_query("SELECT * FROM complaints", conn)
+
+    if not saved.empty:
+
+        category_filter = st.selectbox("Select Category", ["All"] + list(saved["category"].unique()))
+
+        if category_filter != "All":
+            saved = saved[saved["category"] == category_filter]
+
+        st.write("### Complaint Distribution")
+        st.bar_chart(saved["category"].value_counts())
+
+        st.write("### Confidence Distribution")
+        saved["confidence"] = saved["confidence"].astype(float)
+        st.bar_chart(saved["confidence"])
