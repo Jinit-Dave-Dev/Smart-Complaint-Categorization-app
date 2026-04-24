@@ -80,7 +80,7 @@ if st.sidebar.button("Logout"):
     st.session_state.logged_in = False
     st.rerun()
 
-# -------------------- LOAD MODEL --------------------
+# -------------------- LOAD --------------------
 vectorizer = pickle.load(open("tfidf_vectorizer.pkl", "rb"))
 le = pickle.load(open("label_encoder.pkl", "rb"))
 model = pickle.load(open("logistic_regression_model.pkl", "rb"))
@@ -95,21 +95,42 @@ df.columns = df.columns.str.strip()
 complaint_col = next((c for c in df.columns if "complaint" in c.lower()), None)
 df[complaint_col] = df[complaint_col].astype(str)
 
-# -------------------- FIXED CATEGORY LOGIC --------------------
-def map_category(prediction):
-    """FIXED: safer mapping without wrong overrides"""
-    p = str(prediction).lower()
+# -------------------- FIXED CATEGORY ENGINE --------------------
+def get_category(text):
+    t = str(text).lower()
 
-    if "electric" in p:
-        return "Electricity"
-    elif "garbage" in p:
-        return "Garbage"
-    elif "road" in p:
+    # STRICT PRIORITY RULES (FIX FOR YOUR BUG)
+    if "road" in t or "pothole" in t or "street" in t:
         return "Road"
-    elif "water" in p:
+    elif "water" in t or "leak" in t or "pipeline" in t:
         return "Water"
+    elif "garbage" in t or "waste" in t:
+        return "Garbage"
+    elif "electric" in t or "power" in t:
+        return "Electricity"
     else:
         return "Other"
+
+# -------------------- CHATBOT ENGINE (IMPROVED) --------------------
+def chatbot(msg):
+    m = msg.lower()
+
+    if any(x in m for x in ["hi", "hello", "hey"]):
+        return "👋 Hello! I am your complaint assistant."
+
+    if "road" in m:
+        return "🛣️ Road complaint registered. It will be forwarded to municipality."
+
+    if "water" in m:
+        return "💧 Water complaint noted. Action will be taken soon."
+
+    if "electric" in m:
+        return "⚡ Electricity issue registered."
+
+    if "status" in m:
+        return "📊 Check Dashboard tab for status updates."
+
+    return "📌 Complaint recorded. We will process it soon."
 
 # -------------------- UI --------------------
 st.title("🏛️ Smart Municipal Complaint System")
@@ -127,25 +148,26 @@ with tabs[0]:
         pred = model.predict(X)
         prediction = le.inverse_transform(pred)[0]
 
-        # ✅ FIXED: correct category mapping
-        cat = map_category(prediction)
+        # ✅ FIXED CATEGORY (NO MORE WRONG WATER ISSUE)
+        category = get_category(text)
 
         try:
             conf = round(model.predict_proba(X).max() * 100, 2)
         except:
             conf = np.random.uniform(60, 80)
 
+        # ✅ ALWAYS STORE CLEAN DATA
         c.execute("""
             INSERT INTO complaints VALUES (?, ?, ?, ?, ?)
-        """, (st.session_state.user, text, prediction, cat, str(conf)))
+        """, (st.session_state.user, text, prediction, category, str(conf)))
 
         conn.commit()
 
-        st.success("Complaint Registered")
+        st.success("Complaint Registered Successfully")
 
         col1, col2 = st.columns(2)
         col1.metric("Prediction", prediction)
-        col2.metric("Category", cat)
+        col2.metric("Category", category)
 
         st.markdown("### 🔍 Similar Complaints")
 
@@ -164,32 +186,44 @@ with tabs[1]:
 
     if not saved.empty:
 
+        st.markdown("## 📊 Dashboard Overview")
+
         col1, col2, col3 = st.columns(3)
-        col1.metric("Total", len(saved))
+        col1.metric("Total Complaints", len(saved))
         col2.metric("Users", saved["user"].nunique())
         col3.metric("Top Category", saved["category"].value_counts().idxmax())
 
         st.dataframe(saved, use_container_width=True)
 
-# ================== ANALYTICS ==================
+# ================== ANALYTICS (IMPROVED POWER BI STYLE) ==================
 with tabs[2]:
 
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
     if not saved.empty:
 
+        st.markdown("## 📈 Analytics Dashboard")
+
+        # KPI CARDS
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total Complaints", len(saved))
+        col2.metric("Unique Categories", saved["category"].nunique())
+        col3.metric("Most Common", saved["category"].value_counts().idxmax())
+
+        # PIE CHART
         st.markdown("### 🥧 Category Distribution")
         fig1, ax1 = plt.subplots()
         saved["category"].value_counts().plot.pie(autopct="%1.1f%%", ax=ax1)
         ax1.set_ylabel("")
         st.pyplot(fig1)
 
+        # BAR CHART
         st.markdown("### 📊 Category Count")
         fig2, ax2 = plt.subplots()
         saved["category"].value_counts().plot.bar(ax=ax2)
         st.pyplot(fig2)
 
-# ================== CHATBOT ==================
+# ================== CHATBOT (FIXED) ==================
 with tabs[3]:
 
     if "chat" not in st.session_state:
@@ -204,19 +238,11 @@ with tabs[3]:
 
     if msg:
         st.session_state.chat.append(("You", msg))
-
-        m = msg.lower()
-
-        if "hello" in m:
-            reply = "👋 Hello!"
-        elif "road" in m:
-            reply = "🛣️ Road issue registered"
-        elif "water" in m:
-            reply = "💧 Water issue registered"
-        else:
-            reply = "📌 Complaint noted in system"
-
+        reply = chatbot(msg)
         st.session_state.chat.append(("Bot", reply))
 
     for r, m in st.session_state.chat:
-        st.write(f"**{r}:** {m}")
+        if r == "You":
+            st.markdown(f"**🧑 You:** {m}")
+        else:
+            st.markdown(f"**🤖 Bot:** {m}")
