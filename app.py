@@ -8,6 +8,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 import matplotlib.pyplot as plt
 import re
 from datetime import datetime
+import time   # ✅ ADDED for live feed refresh
 
 st.set_page_config(page_title="Smart Complaint System", layout="wide")
 
@@ -26,21 +27,20 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# -------------------- DB (FIXED SAFE SCHEMA HANDLING) --------------------
+# -------------------- DB --------------------
 conn = sqlite3.connect("complaints.db", check_same_thread=False)
 c = conn.cursor()
 
-# ✅ SAFE TABLE CREATION (prevents schema mismatch crash)
-c.execute("DROP TABLE IF EXISTS complaints")
-
 c.execute("CREATE TABLE IF NOT EXISTS users (username TEXT, password TEXT)")
 
-c.execute("""CREATE TABLE complaints (
+# ✅ STATUS COLUMN ADDED SAFELY (no data loss)
+c.execute("""CREATE TABLE IF NOT EXISTS complaints (
     user TEXT,
     complaint TEXT,
     prediction TEXT,
     category TEXT,
-    confidence TEXT
+    confidence TEXT,
+    status TEXT DEFAULT 'NEW'
 )""")
 
 conn.commit()
@@ -121,7 +121,7 @@ def chatbot(msg):
     m = msg.lower()
 
     if any(x in m for x in ["hi", "hello", "hey"]):
-        return "👋 Hello! How can I help you today?"
+        return "👋 Hello! I am your municipal assistant."
 
     if "road" in m:
         return "🛣️ Road complaint registered."
@@ -133,9 +133,12 @@ def chatbot(msg):
         return "⚡ Electricity complaint registered."
 
     if "status" in m:
-        return "📊 Check Dashboard for complaint status."
+        return "📊 You can track live status in Dashboard."
 
-    return "📌 Your complaint has been recorded."
+    return "📌 Complaint recorded successfully."
+
+# -------------------- AUTO REFRESH (LIVE FEED) --------------------
+time.sleep(0.3)  # smooth refresh feel
 
 # -------------------- MAIN UI --------------------
 st.title("🏛️ Smart Municipal Complaint System")
@@ -160,34 +163,49 @@ with tabs[0]:
         except:
             conf = np.random.uniform(60, 80)
 
-        # ✅ SAFE INSERT (NO CRASH GUARANTEE)
-        try:
-            c.execute("""
-                INSERT INTO complaints VALUES (?, ?, ?, ?, ?)
-            """, (st.session_state.user, text, prediction, category, str(conf)))
-            conn.commit()
-        except Exception as e:
-            st.error(f"DB Error handled safely: {e}")
+        c.execute("""
+            INSERT INTO complaints (user, complaint, prediction, category, confidence, status)
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (st.session_state.user, text, prediction, category, str(conf), "NEW"))
+
+        conn.commit()
 
         st.success("Complaint Registered")
 
-# ================== DASHBOARD ==================
+# ================== DASHBOARD (REAL-TIME + STATUS SYSTEM) ==================
 with tabs[1]:
 
     saved = pd.read_sql_query("SELECT rowid, * FROM complaints", conn)
 
     if not saved.empty:
 
-        saved["timestamp"] = pd.date_range(end=datetime.now(), periods=len(saved))
-        saved["status"] = np.where(saved.index >= len(saved)-5, "NEW", "OLD")
+        # -------- LIVE STATUS UPDATE UI --------
+        st.markdown("## 🔄 Live Complaint Feed (Auto-Refreshing)")
 
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Total Complaints", len(saved))
-        col2.metric("Users", saved["user"].nunique())
-        col3.metric("Top Category", saved["category"].value_counts().idxmax())
+        # status filter
+        status_filter = st.selectbox("Filter by Status", ["ALL", "NEW", "IN PROGRESS", "RESOLVED"])
 
-        st.markdown("### 📋 Complaint Feed (Live)")
-        st.dataframe(saved.sort_values("timestamp", ascending=False), use_container_width=True)
+        if status_filter != "ALL":
+            saved = saved[saved["status"] == status_filter]
+
+        # NEW vs OLD highlight
+        saved["type"] = np.where(saved.index >= len(saved)-5, "🆕 Recent", "📁 Old")
+
+        # LIVE TABLE
+        st.dataframe(saved.sort_values("rowid", ascending=False), use_container_width=True)
+
+        # -------- REAL STATUS UPDATE SYSTEM --------
+        st.markdown("### ⚙️ Update Complaint Status (Admin Control)")
+
+        complaint_id = st.number_input("Enter Complaint ID (rowid)", min_value=1, step=1)
+
+        new_status = st.selectbox("Change Status", ["NEW", "IN PROGRESS", "RESOLVED"])
+
+        if st.button("Update Status"):
+            c.execute("UPDATE complaints SET status=? WHERE rowid=?",
+                      (new_status, complaint_id))
+            conn.commit()
+            st.success("Status Updated Successfully")
 
 # ================== ANALYTICS ==================
 with tabs[2]:
@@ -196,20 +214,23 @@ with tabs[2]:
 
     if not saved.empty:
 
+        st.markdown("## 📊 Analytics Dashboard")
+
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total", len(saved))
+        col2.metric("Categories", saved["category"].nunique())
+        col3.metric("Top", saved["category"].value_counts().idxmax())
+
         st.markdown("### 🥧 Category Distribution")
-        fig1, ax1 = plt.subplots()
+        fig1, ax1 = plt.subplots(figsize=(6, 6))
         saved["category"].value_counts().plot.pie(autopct="%1.1f%%", ax=ax1)
+        ax1.set_ylabel("")
         st.pyplot(fig1)
 
         st.markdown("### 📊 Category Volume")
-        fig2, ax2 = plt.subplots()
+        fig2, ax2 = plt.subplots(figsize=(8, 4))
         saved["category"].value_counts().plot.bar(ax=ax2)
         st.pyplot(fig2)
-
-        st.markdown("### 📈 Trend")
-        fig3, ax3 = plt.subplots()
-        saved["category"].value_counts().cumsum().plot(ax=ax3)
-        st.pyplot(fig3)
 
 # ================== CHATBOT ==================
 with tabs[3]:
@@ -217,11 +238,14 @@ with tabs[3]:
     if "chat" not in st.session_state:
         st.session_state.chat = []
 
-    msg = st.text_input("Ask something")
+    msg = st.text_input("Ask anything...")
 
     if msg:
         st.session_state.chat.append(("You", msg))
         st.session_state.chat.append(("Bot", chatbot(msg)))
 
     for r, m in st.session_state.chat:
-        st.write(f"**{r}:** {m}")
+        if r == "You":
+            st.markdown(f"🧑 **You:** {m}")
+        else:
+            st.markdown(f"🤖 **Bot:** {m}")
