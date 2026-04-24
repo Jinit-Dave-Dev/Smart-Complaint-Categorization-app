@@ -17,8 +17,7 @@ c.execute("""CREATE TABLE IF NOT EXISTS complaints (
     user TEXT,
     complaint TEXT,
     category TEXT,
-    confidence TEXT,
-    status TEXT
+    confidence TEXT
 )""")
 conn.commit()
 
@@ -91,10 +90,15 @@ def safe_confidence(val):
     try:
         val = float(val)
         if val <= 0:
-            return np.random.uniform(55, 75)  # fallback realistic
+            return np.random.uniform(55, 75)
         return val
     except:
         return np.random.uniform(55, 75)
+
+def ensure_status_column(df):
+    if "status" not in df.columns:
+        df["status"] = "NEW"
+    return df
 
 def confidence_label(conf):
     if conf >= 75:
@@ -125,8 +129,8 @@ with tabs[0]:
             except:
                 conf = np.random.uniform(60, 80)
 
-            c.execute("INSERT INTO complaints VALUES (?,?,?,?,?)",
-                      (st.session_state.user, text, cat, str(conf), "NEW"))
+            c.execute("INSERT INTO complaints VALUES (?,?,?,?)",
+                      (st.session_state.user, text, cat, str(conf)))
             conn.commit()
 
             st.success("✅ Complaint Registered")
@@ -137,6 +141,7 @@ with tabs[0]:
 
             # -------- SIMILAR --------
             st.markdown("### 🔍 Similar Complaints")
+
             X_all = vectorizer.transform(df[complaint_col])
             X_input = vectorizer.transform([text])
 
@@ -153,19 +158,17 @@ with tabs[1]:
         saved["category"] = saved["category"].apply(clean_category)
         saved["confidence"] = saved["confidence"].apply(safe_confidence)
 
-        # KPI
+        saved = ensure_status_column(saved)
+
         col1, col2, col3 = st.columns(3)
         col1.metric("Total Complaints", len(saved))
         col2.metric("Avg Confidence", round(saved["confidence"].mean(), 2))
-        col3.metric("Resolved %", "65%")
+        col3.metric("Open Cases", len(saved[saved["status"] == "NEW"]))
 
-        # Table
-        st.markdown("### 📋 Complaint Records")
         st.dataframe(saved, use_container_width=True)
 
-        # Filter
         cat = st.selectbox("Filter by Category", saved["category"].unique())
-        st.dataframe(saved[saved["category"] == cat], use_container_width=True)
+        st.dataframe(saved[saved["category"] == cat])
 
 # ================== ANALYTICS ==================
 with tabs[2]:
@@ -174,6 +177,8 @@ with tabs[2]:
     if not saved.empty:
         saved["category"] = saved["category"].apply(clean_category)
         saved["confidence"] = saved["confidence"].apply(safe_confidence)
+
+        saved = ensure_status_column(saved)
 
         st.markdown("### 📊 Category Distribution")
         st.bar_chart(saved["category"].value_counts())
@@ -197,16 +202,16 @@ with tabs[3]:
         m = msg.lower()
 
         if any(x in m for x in ["hi", "hello", "hey"]):
-            reply = "Hey 👋 How can I assist you today?"
+            reply = "Hey 👋 How can I help you today?"
         elif "water" in m:
-            reply = "💧 Water issue detected. Please contact local water department."
+            reply = "💧 Water issue detected. Contact local authority."
         elif "road" in m:
-            reply = "🛣️ Road complaints usually take 2–5 days to resolve."
+            reply = "🛣️ Road issue noted. Expected resolution: few days."
         elif "status" in m:
             reply = "📊 Check Dashboard tab for complaint status."
         else:
             sample = df.sample(1)[complaint_col].values[0]
-            reply = f"I found a similar complaint:\n{sample}"
+            reply = f"Here’s a similar complaint:\n{sample}"
 
         st.session_state.chat.append(("Bot", reply))
 
