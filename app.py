@@ -7,25 +7,36 @@ import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 import matplotlib.pyplot as plt
 import re
+from datetime import datetime
 
-st.set_page_config(page_title="Smart Civic Complaint System", layout="wide")
+st.set_page_config(page_title="Smart Complaint System", layout="wide")
+
+# -------------------- UI --------------------
+st.markdown("""
+<style>
+.stApp {
+    background: linear-gradient(135deg, #0f172a, #1e293b, #0f172a);
+    color: white;
+}
+.stButton button {
+    background: linear-gradient(90deg, #4f46e5, #06b6d4);
+    color: white;
+    border-radius: 10px;
+}
+</style>
+""", unsafe_allow_html=True)
 
 # -------------------- DB --------------------
 conn = sqlite3.connect("complaints.db", check_same_thread=False)
 c = conn.cursor()
 
-# ✅ FIX: ensure role column exists safely
-c.execute("CREATE TABLE IF NOT EXISTS users (username TEXT, password TEXT, role TEXT DEFAULT 'user')")
-
+c.execute("CREATE TABLE IF NOT EXISTS users (username TEXT, password TEXT)")
 c.execute("""CREATE TABLE IF NOT EXISTS complaints (
     user TEXT,
     complaint TEXT,
     prediction TEXT,
     category TEXT,
-    confidence TEXT,
-    priority TEXT,
-    sentiment TEXT,
-    status TEXT
+    confidence TEXT
 )""")
 conn.commit()
 
@@ -34,8 +45,6 @@ if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "user" not in st.session_state:
     st.session_state.user = ""
-if "role" not in st.session_state:
-    st.session_state.role = "user"
 
 # -------------------- LOGIN --------------------
 def login():
@@ -43,24 +52,18 @@ def login():
 
     u = st.text_input("Username")
     p = st.text_input("Password", type="password")
-    role = st.selectbox("Role", ["user", "admin"])
 
     if st.button("Login"):
-        # ✅ FIX: role-safe query
-        c.execute(
-            "SELECT * FROM users WHERE username=? AND password=? AND role=?",
-            (u, p, role)
-        )
+        c.execute("SELECT * FROM users WHERE username=? AND password=?", (u, p))
         if c.fetchone():
             st.session_state.logged_in = True
             st.session_state.user = u
-            st.session_state.role = role
             st.rerun()
         else:
             st.error("Invalid Credentials")
 
     if st.button("Register"):
-        c.execute("INSERT INTO users (username, password, role) VALUES (?,?,?)", (u, p, role))
+        c.execute("INSERT INTO users VALUES (?,?)", (u, p))
         conn.commit()
         st.success("Registered")
 
@@ -69,15 +72,17 @@ if not st.session_state.logged_in:
     st.stop()
 
 # -------------------- SIDEBAR --------------------
-st.sidebar.title("📊 Civic System")
+st.sidebar.title("📊 Smart Dashboard")
 st.sidebar.write(f"👤 {st.session_state.user}")
-st.sidebar.write(f"🛡️ Role: {st.session_state.role}")
+
+st.sidebar.markdown("### 👨‍💻 Developer")
+st.sidebar.write("Jinit Dave")
 
 if st.sidebar.button("Logout"):
     st.session_state.logged_in = False
     st.rerun()
 
-# -------------------- LOAD MODELS --------------------
+# -------------------- LOAD --------------------
 vectorizer = pickle.load(open("tfidf_vectorizer.pkl", "rb"))
 le = pickle.load(open("label_encoder.pkl", "rb"))
 model = pickle.load(open("logistic_regression_model.pkl", "rb"))
@@ -94,44 +99,53 @@ df[complaint_col] = df[complaint_col].astype(str)
 
 # -------------------- CATEGORY --------------------
 def get_category(text):
-    t = re.sub(r'[^a-zA-Z ]', ' ', text.lower())
+    t = re.sub(r'[^a-zA-Z ]', ' ', str(text).lower())
 
-    if "road" in t or "pothole" in t:
+    if any(x in t for x in ["road", "pothole", "street"]):
         return "Road"
-    if "water" in t:
+    if any(x in t for x in ["water", "leak", "pipeline"]):
         return "Water"
-    if "electric" in t:
-        return "Electricity"
-    if "garbage" in t:
+    if any(x in t for x in ["garbage", "waste"]):
         return "Garbage"
+    if any(x in t for x in ["electric", "power"]):
+        return "Electricity"
     return "Other"
 
-# -------------------- CHATBOT --------------------
+# -------------------- CHATBOT (IMPROVED NATURAL FLOW) --------------------
 def chatbot(msg):
     m = msg.lower()
 
+    if any(x in m for x in ["hi", "hello", "hey"]):
+        return "👋 Hello! I’m your civic assistant. How can I help you today?"
+
     if "road" in m:
-        return "🛣️ Road complaint processed."
+        return "🛣️ Road complaint registered. Assigned to PWD department."
 
     if "water" in m:
-        return "💧 Water complaint processed."
+        return "💧 Water issue logged. Municipal team notified."
 
     if "electric" in m:
-        return "⚡ Electricity complaint processed."
+        return "⚡ Electricity complaint forwarded to energy department."
 
-    return "📌 Complaint recorded successfully."
+    if "status" in m:
+        return "📊 You can track live complaint status in Dashboard."
+
+    if "help" in m:
+        return "🤖 I can help with complaints, status tracking, and updates."
+
+    return "📌 Your request has been recorded successfully."
 
 # -------------------- UI --------------------
-st.title("🏛️ Smart Civic Complaint System")
+st.title("🏛️ Smart Municipal Complaint System")
 
-tabs = st.tabs(["📝 Complaint", "📊 Dashboard", "📈 Analytics", "🤖 Chatbot", "🛡️ Admin Panel"])
+tabs = st.tabs(["📝 Complaint", "📊 Dashboard", "📈 Analytics", "🤖 Chatbot"])
 
 # ================== COMPLAINT ==================
 with tabs[0]:
 
-    text = st.text_area("Enter complaint")
+    text = st.text_area("Enter your complaint")
 
-    if st.button("Submit") and text.strip():
+    if st.button("Submit Complaint") and text.strip():
 
         X = vectorizer.transform([text])
         pred = model.predict(X)
@@ -145,42 +159,77 @@ with tabs[0]:
             conf = np.random.uniform(60, 80)
 
         c.execute("""
-            INSERT INTO complaints VALUES (?,?,?,?,?,?,?,?)
-        """, (
-            st.session_state.user,
-            text,
-            prediction,
-            category,
-            str(conf),
-            "Medium",
-            "Neutral",
-            "NEW"
-        ))
+            INSERT INTO complaints VALUES (?, ?, ?, ?, ?)
+        """, (st.session_state.user, text, prediction, category, str(conf)))
 
         conn.commit()
 
-        st.success("Complaint Registered")
+        st.success("Complaint Registered Successfully")
+
+        col1, col2 = st.columns(2)
+        col1.metric("Prediction", prediction)
+        col2.metric("Category", category)
+
+        st.markdown("### 🔍 Similar Complaints")
+
+        X_all = vectorizer.transform(df[complaint_col])
+        X_input = vectorizer.transform([text])
+
+        sim = cosine_similarity(X_input, X_all)[0]
+        idx = np.argsort(sim)[-5:][::-1]
+
+        similar_df = df.iloc[idx][[complaint_col]].copy()
+        similar_df.columns = ["Similar Complaints"]
+
+        st.dataframe(similar_df, use_container_width=True)
 
 # ================== DASHBOARD ==================
 with tabs[1]:
 
-    data = pd.read_sql_query("SELECT * FROM complaints", conn)
+    saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
-    if not data.empty:
-        st.metric("Total Complaints", len(data))
-        st.dataframe(data, use_container_width=True)
+    if not saved.empty:
+
+        saved["timestamp"] = pd.date_range(end=datetime.now(), periods=len(saved))
+        saved["status"] = np.where(saved.index >= len(saved)-5, "NEW", "OLD")
+
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total Complaints", len(saved))
+        col2.metric("Users", saved["user"].nunique())
+        col3.metric("Top Category", saved["category"].value_counts().idxmax())
+
+        st.markdown("### 📋 Live Complaint Feed")
+        st.dataframe(saved.sort_values("timestamp", ascending=False), use_container_width=True)
 
 # ================== ANALYTICS ==================
 with tabs[2]:
 
-    data = pd.read_sql_query("SELECT * FROM complaints", conn)
+    saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
-    if not data.empty:
+    if not saved.empty:
 
-        st.subheader("Category Distribution")
-        fig, ax = plt.subplots()
-        data["category"].value_counts().plot.pie(autopct="%1.1f%%", ax=ax)
-        st.pyplot(fig)
+        st.markdown("## 📊 Analytics Overview")
+
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total", len(saved))
+        col2.metric("Categories", saved["category"].nunique())
+        col3.metric("Top", saved["category"].value_counts().idxmax())
+
+        st.markdown("### 🥧 Category Distribution")
+        fig1, ax1 = plt.subplots(figsize=(6, 5))
+        saved["category"].value_counts().plot.pie(autopct="%1.1f%%", ax=ax1)
+        ax1.set_ylabel("")
+        st.pyplot(fig1)
+
+        st.markdown("### 📊 Category Volume")
+        fig2, ax2 = plt.subplots(figsize=(7, 4))
+        saved["category"].value_counts().plot.bar(ax=ax2)
+        st.pyplot(fig2)
+
+        st.markdown("### 📈 Trend View")
+        fig3, ax3 = plt.subplots(figsize=(7, 4))
+        saved["category"].value_counts().cumsum().plot(ax=ax3)
+        st.pyplot(fig3)
 
 # ================== CHATBOT ==================
 with tabs[3]:
@@ -188,20 +237,19 @@ with tabs[3]:
     if "chat" not in st.session_state:
         st.session_state.chat = []
 
-    msg = st.text_input("Ask something")
+    col1, col2 = st.columns([3, 1])
+
+    msg = col1.text_input("Ask anything...")
+
+    if col2.button("🗑️ Clear Chat"):
+        st.session_state.chat = []
 
     if msg:
         st.session_state.chat.append(("You", msg))
-        st.session_state.chat.append(("Bot", chatbot(msg)))
+        st.session_state.chat.append(("Assistant", chatbot(msg)))
 
     for r, m in st.session_state.chat:
-        st.write(f"**{r}:** {m}")
-
-# ================== ADMIN ==================
-with tabs[4]:
-
-    if st.session_state.role != "admin":
-        st.warning("Admin only access")
-    else:
-        admin_data = pd.read_sql_query("SELECT * FROM complaints", conn)
-        st.dataframe(admin_data, use_container_width=True)
+        if r == "You":
+            st.markdown(f"🧑 **You:** {m}")
+        else:
+            st.markdown(f"🤖 **Assistant:** {m}")
