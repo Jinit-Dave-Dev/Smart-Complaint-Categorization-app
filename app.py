@@ -7,9 +7,8 @@ import numpy as np
 from sklearn.metrics.pairwise import cosine_similarity
 import matplotlib.pyplot as plt
 import re
-from datetime import datetime
 
-st.set_page_config(page_title="Smart Complaint System", layout="wide")
+st.set_page_config(page_title="Smart Civic Complaint System", layout="wide")
 
 # -------------------- UI --------------------
 st.markdown("""
@@ -26,17 +25,20 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# -------------------- DATABASE --------------------
+# -------------------- DB --------------------
 conn = sqlite3.connect("complaints.db", check_same_thread=False)
 c = conn.cursor()
 
-c.execute("CREATE TABLE IF NOT EXISTS users (username TEXT, password TEXT)")
+c.execute("CREATE TABLE IF NOT EXISTS users (username TEXT, password TEXT, role TEXT)")
 c.execute("""CREATE TABLE IF NOT EXISTS complaints (
     user TEXT,
     complaint TEXT,
     prediction TEXT,
     category TEXT,
-    confidence TEXT
+    confidence TEXT,
+    priority TEXT,
+    sentiment TEXT,
+    status TEXT
 )""")
 conn.commit()
 
@@ -45,6 +47,8 @@ if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "user" not in st.session_state:
     st.session_state.user = ""
+if "role" not in st.session_state:
+    st.session_state.role = "user"
 
 # -------------------- LOGIN --------------------
 def login():
@@ -52,18 +56,20 @@ def login():
 
     u = st.text_input("Username")
     p = st.text_input("Password", type="password")
+    role = st.selectbox("Role", ["user", "admin"])
 
     if st.button("Login"):
-        c.execute("SELECT * FROM users WHERE username=? AND password=?", (u, p))
+        c.execute("SELECT * FROM users WHERE username=? AND password=? AND role=?", (u, p, role))
         if c.fetchone():
             st.session_state.logged_in = True
             st.session_state.user = u
+            st.session_state.role = role
             st.rerun()
         else:
             st.error("Invalid Credentials")
 
     if st.button("Register"):
-        c.execute("INSERT INTO users VALUES (?,?)", (u, p))
+        c.execute("INSERT INTO users VALUES (?,?,?)", (u, p, role))
         conn.commit()
         st.success("Registered")
 
@@ -72,11 +78,9 @@ if not st.session_state.logged_in:
     st.stop()
 
 # -------------------- SIDEBAR --------------------
-st.sidebar.title("📊 Smart Dashboard")
+st.sidebar.title("📊 Civic System")
 st.sidebar.write(f"👤 {st.session_state.user}")
-
-st.sidebar.markdown("### 👨‍💻 Developer")
-st.sidebar.write("Jinit Dave")
+st.sidebar.write(f"🛡️ Role: {st.session_state.role}")
 
 if st.sidebar.button("Logout"):
     st.session_state.logged_in = False
@@ -97,63 +101,83 @@ df.columns = df.columns.str.strip()
 complaint_col = next((c for c in df.columns if "complaint" in c.lower()), None)
 df[complaint_col] = df[complaint_col].astype(str)
 
-# -------------------- FIXED CATEGORY ENGINE (IMPORTANT FIX ONLY) --------------------
+# -------------------- AI ENGINES --------------------
 def get_category(text):
-    t = re.sub(r'[^a-zA-Z ]', ' ', str(text).lower())
+    t = re.sub(r'[^a-zA-Z ]', ' ', text.lower())
 
-    # STRICT PRIORITY (fixes road/water confusion)
-    if any(x in t for x in ["road", "pothole", "street", "highway"]):
+    if any(x in t for x in ["road", "pothole"]):
         return "Road"
-
-    if any(x in t for x in ["water", "pipeline", "leak", "drain"]):
+    if any(x in t for x in ["water", "pipeline"]):
         return "Water"
-
-    if any(x in t for x in ["garbage", "waste", "trash"]):
-        return "Garbage"
-
-    if any(x in t for x in ["electric", "power", "light"]):
+    if any(x in t for x in ["electric", "power"]):
         return "Electricity"
-
+    if any(x in t for x in ["garbage", "waste"]):
+        return "Garbage"
     return "Other"
 
-# -------------------- IMPROVED CHATBOT (ONLY UPGRADE, NO STRUCTURE CHANGE) --------------------
+def get_priority(text):
+    t = text.lower()
+    if any(x in t for x in ["accident", "fire", "flood", "no water", "no electricity"]):
+        return "High"
+    if any(x in t for x in ["road", "leak", "garbage"]):
+        return "Medium"
+    return "Low"
+
+def get_sentiment(text):
+    t = text.lower()
+    if any(x in t for x in ["angry", "urgent", "worst", "bad"]):
+        return "Negative"
+    if any(x in t for x in ["good", "thanks"]):
+        return "Positive"
+    return "Neutral"
+
+def get_department(cat):
+    mapping = {
+        "Road": "PWD Department",
+        "Water": "Water Board",
+        "Electricity": "Electricity Board",
+        "Garbage": "Municipal Cleaning"
+    }
+    return mapping.get(cat, "General Dept")
+
+# -------------------- CHATBOT --------------------
 def chatbot(msg):
     m = msg.lower()
 
-    if any(x in m for x in ["hi", "hello", "hey"]):
-        return "👋 Hello! I am your municipal complaint assistant."
+    if "status" in m:
+        return "📊 You can track complaint status in Admin Panel or Dashboard."
 
     if "road" in m:
-        return "🛣️ Your road complaint has been recorded and forwarded to PWD department."
+        return "🛣️ Road complaint registered and sent to PWD."
 
     if "water" in m:
-        return "💧 Water issue logged. Municipal water department will take action."
+        return "💧 Water complaint assigned to Water Board."
 
     if "electric" in m:
-        return "⚡ Electricity complaint registered and escalated."
+        return "⚡ Electricity issue escalated."
 
-    if "status" in m:
-        return "📊 You can track complaint status in Dashboard tab."
-
-    return "📌 Complaint registered successfully. Our team will review it."
+    return "📌 Complaint registered successfully. System is processing it."
 
 # -------------------- UI --------------------
-st.title("🏛️ Smart Municipal Complaint System")
+st.title("🏛️ Smart Civic Complaint System (Government SaaS Level)")
 
-tabs = st.tabs(["📝 Complaint", "📊 Dashboard", "📈 Analytics", "🤖 Chatbot"])
+tabs = st.tabs(["📝 Complaint", "📊 Dashboard", "📈 Analytics", "🤖 Chatbot", "🛡️ Admin Panel"])
 
 # ================== COMPLAINT ==================
 with tabs[0]:
 
-    text = st.text_area("Enter your complaint")
+    text = st.text_area("Enter complaint")
 
-    if st.button("Submit Complaint") and text.strip():
+    if st.button("Submit") and text.strip():
 
         X = vectorizer.transform([text])
         pred = model.predict(X)
         prediction = le.inverse_transform(pred)[0]
 
         category = get_category(text)
+        priority = get_priority(text)
+        sentiment = get_sentiment(text)
+        department = get_department(category)
 
         try:
             conf = round(model.predict_proba(X).max() * 100, 2)
@@ -161,48 +185,56 @@ with tabs[0]:
             conf = np.random.uniform(60, 80)
 
         c.execute("""
-            INSERT INTO complaints VALUES (?, ?, ?, ?, ?)
-        """, (st.session_state.user, text, prediction, category, str(conf)))
+            INSERT INTO complaints VALUES (?,?,?,?,?,?,?,?)
+        """, (
+            st.session_state.user,
+            text,
+            prediction,
+            category,
+            str(conf),
+            priority,
+            sentiment,
+            "NEW"
+        ))
 
         conn.commit()
 
         st.success("Complaint Registered")
 
-        col1, col2 = st.columns(2)
-        col1.metric("Prediction", prediction)
-        col2.metric("Category", category)
+        st.write("Department:", department)
+        st.write("Priority:", priority)
+        st.write("Sentiment:", sentiment)
 
 # ================== DASHBOARD ==================
 with tabs[1]:
 
-    saved = pd.read_sql_query("SELECT * FROM complaints", conn)
+    data = pd.read_sql_query("SELECT * FROM complaints", conn)
 
-    if not saved.empty:
-
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Total Complaints", len(saved))
-        col2.metric("Users", saved["user"].nunique())
-        col3.metric("Top Category", saved["category"].value_counts().idxmax())
-
-        st.dataframe(saved, use_container_width=True)
+    if not data.empty:
+        st.metric("Total Complaints", len(data))
+        st.dataframe(data, use_container_width=True)
 
 # ================== ANALYTICS ==================
 with tabs[2]:
 
-    saved = pd.read_sql_query("SELECT * FROM complaints", conn)
+    data = pd.read_sql_query("SELECT * FROM complaints", conn)
 
-    if not saved.empty:
+    if not data.empty:
 
-        st.markdown("### Category Distribution")
-        fig1, ax1 = plt.subplots()
-        saved["category"].value_counts().plot.pie(autopct="%1.1f%%", ax=ax1)
-        ax1.set_ylabel("")
-        st.pyplot(fig1)
+        st.subheader("Category Distribution")
+        fig, ax = plt.subplots()
+        data["category"].value_counts().plot.pie(autopct="%1.1f%%", ax=ax)
+        st.pyplot(fig)
 
-        st.markdown("### Category Count")
+        st.subheader("Priority Distribution")
         fig2, ax2 = plt.subplots()
-        saved["category"].value_counts().plot.bar(ax=ax2)
+        data["priority"].value_counts().plot.bar(ax=ax2)
         st.pyplot(fig2)
+
+        st.subheader("Sentiment Analysis")
+        fig3, ax3 = plt.subplots()
+        data["sentiment"].value_counts().plot.bar(ax=ax3)
+        st.pyplot(fig3)
 
 # ================== CHATBOT ==================
 with tabs[3]:
@@ -210,12 +242,7 @@ with tabs[3]:
     if "chat" not in st.session_state:
         st.session_state.chat = []
 
-    col1, col2 = st.columns([3, 1])
-
-    msg = col1.text_input("Ask anything...")
-
-    if col2.button("Clear Chat"):
-        st.session_state.chat = []
+    msg = st.text_input("Ask something")
 
     if msg:
         st.session_state.chat.append(("You", msg))
@@ -223,3 +250,25 @@ with tabs[3]:
 
     for r, m in st.session_state.chat:
         st.write(f"**{r}:** {m}")
+
+# ================== ADMIN PANEL ==================
+with tabs[4]:
+
+    if st.session_state.role != "admin":
+        st.warning("Admin access only")
+    else:
+        admin_data = pd.read_sql_query("SELECT * FROM complaints", conn)
+
+        st.subheader("Manage Complaints")
+
+        if not admin_data.empty:
+            st.dataframe(admin_data, use_container_width=True)
+
+            idx = st.number_input("Select Row Index to Update Status", min_value=0, max_value=len(admin_data)-1, step=1)
+
+            status = st.selectbox("Update Status", ["NEW", "IN PROGRESS", "RESOLVED"])
+
+            if st.button("Update Status"):
+                c.execute("UPDATE complaints SET status=? WHERE rowid=?", (status, idx+1))
+                conn.commit()
+                st.success("Status Updated")
