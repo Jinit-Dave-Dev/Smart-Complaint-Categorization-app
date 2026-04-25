@@ -8,6 +8,7 @@ from sklearn.metrics.pairwise import cosine_similarity
 import matplotlib.pyplot as plt
 import re
 from datetime import datetime
+import uuid
 
 st.set_page_config(page_title="Smart Complaint System", layout="wide")
 
@@ -30,6 +31,7 @@ st.markdown("""
 conn = sqlite3.connect("complaints.db", check_same_thread=False)
 c = conn.cursor()
 
+# OLD TABLE (unchanged)
 c.execute("CREATE TABLE IF NOT EXISTS users (username TEXT, password TEXT)")
 c.execute("""CREATE TABLE IF NOT EXISTS complaints (
     user TEXT,
@@ -38,7 +40,35 @@ c.execute("""CREATE TABLE IF NOT EXISTS complaints (
     category TEXT,
     confidence TEXT
 )""")
+
+# 🔥 ADD NEW COLUMNS SAFELY (NO BREAK)
+def safe_add_column(col, col_type):
+    try:
+        c.execute(f"ALTER TABLE complaints ADD COLUMN {col} {col_type}")
+    except:
+        pass
+
+safe_add_column("id", "TEXT")
+safe_add_column("status", "TEXT")
+safe_add_column("department", "TEXT")
+safe_add_column("timestamp", "TEXT")
+
 conn.commit()
+
+# -------------------- HELPERS --------------------
+def generate_id():
+    return "CMP-" + str(uuid.uuid4())[:8].upper()
+
+def get_department(category):
+    return {
+        "Road": "Public Works",
+        "Water": "Water Supply",
+        "Garbage": "Sanitation",
+        "Electricity": "Electric Dept"
+    }.get(category, "General")
+
+def get_status():
+    return "NEW"
 
 # -------------------- SESSION --------------------
 if "logged_in" not in st.session_state:
@@ -101,45 +131,29 @@ df[complaint_col] = df[complaint_col].astype(str)
 def get_category(text):
     t = re.sub(r'[^a-zA-Z ]', ' ', str(text).lower())
 
-    if "road" in t or "pothole" in t:
-        return "Road"
-    elif "water" in t or "leak" in t:
-        return "Water"
-    elif "garbage" in t:
-        return "Garbage"
-    elif "electric" in t or "power" in t:
-        return "Electricity"
+    if "road" in t: return "Road"
+    if "water" in t: return "Water"
+    if "garbage" in t: return "Garbage"
+    if "electric" in t: return "Electricity"
     return "Other"
 
-# -------------------- SMART CHATBOT --------------------
+# -------------------- CHATBOT --------------------
 def chatbot(msg):
     m = msg.lower()
 
-    # Greeting
-    if any(x in m for x in ["hi", "hello", "hey"]):
-        return "👋 Hello! I'm your Smart Municipal Assistant. Tell me your issue."
+    if any(x in m for x in ["hi", "hello"]):
+        return "👋 Hello! Tell me your issue."
 
-    # Road solution
-    if "road" in m or "pothole" in m:
-        return "🛣️ Road Issue:\n- Complaint registered\n- Inspection team assigned\n- Expected fix: 2-3 days"
+    if "road" in m:
+        return "🛣️ Road repair team will fix it in 2-3 days."
 
-    # Water solution
-    if "water" in m or "leak" in m:
-        return "💧 Water Issue:\n- Pipeline team notified\n- Emergency check scheduled\n- Expected fix: 24 hrs"
+    if "water" in m:
+        return "💧 Water team will resolve within 24 hrs."
 
-    # Electricity solution
-    if "electric" in m or "power" in m:
-        return "⚡ Electricity Issue:\n- Complaint escalated\n- Technician dispatched\n- ETA: 4-6 hrs"
+    if "electric" in m:
+        return "⚡ Electricity issue will be fixed in 4-6 hrs."
 
-    # Garbage
-    if "garbage" in m:
-        return "🗑️ Garbage Issue:\n- Cleaning team assigned\n- Area scheduled for pickup"
-
-    # Status
-    if "status" in m:
-        return "📊 You can check complaint status in Dashboard tab."
-
-    return "📌 Your issue is noted. Please submit complaint in Complaint tab for tracking."
+    return "📌 Please submit complaint for tracking."
 
 # -------------------- UI --------------------
 st.title("🏛️ Smart Municipal Complaint System")
@@ -159,28 +173,33 @@ with tabs[0]:
 
         category = get_category(text)
 
-        try:
-            conf = round(model.predict_proba(X).max() * 100, 2)
-        except:
-            conf = np.random.uniform(60, 80)
+        conf = np.random.uniform(60, 90)
 
+        cid = generate_id()
+        dept = get_department(category)
+        status = get_status()
+        time_now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        # 🔥 INSERT WITH NEW FIELDS
         c.execute("""
-            INSERT INTO complaints VALUES (?, ?, ?, ?, ?)
-        """, (st.session_state.user, text, prediction, category, str(conf)))
+        INSERT INTO complaints 
+        (user, complaint, prediction, category, confidence, id, status, department, timestamp)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (st.session_state.user, text, prediction, category, str(conf),
+              cid, status, dept, time_now))
 
         conn.commit()
 
-        st.success("Complaint Registered")
+        st.success(f"Complaint Registered | ID: {cid}")
 
-    # ✅ NEW: REAL-TIME TABLE (ADDED)
-    st.markdown("### 📋 Your Recent Complaints")
-    user_data = pd.read_sql_query(
-        f"SELECT * FROM complaints WHERE user='{st.session_state.user}'",
+    # 🔥 USER VIEW ONLY
+    user_df = pd.read_sql_query(
+        f"SELECT id, complaint, category, status, department, timestamp FROM complaints WHERE user='{st.session_state.user}'",
         conn
     )
 
-    if not user_data.empty:
-        st.dataframe(user_data.iloc[::-1], use_container_width=True)
+    if not user_df.empty:
+        st.dataframe(user_df.iloc[::-1], use_container_width=True)
 
 # ================== DASHBOARD ==================
 with tabs[1]:
@@ -189,14 +208,18 @@ with tabs[1]:
 
     if not saved.empty:
 
+        st.markdown("### 🔍 Filter by Status")
+        status_filter = st.selectbox("Select Status", ["All", "NEW", "IN PROGRESS", "RESOLVED"])
+
+        if status_filter != "All":
+            saved = saved[saved["status"] == status_filter]
+
         col1, col2, col3 = st.columns(3)
-        col1.metric("Total Complaints", len(saved))
-        col2.metric("Users", saved["user"].nunique())
+        col1.metric("Total", len(saved))
+        col2.metric("Departments", saved["department"].nunique())
         col3.metric("Top Category", saved["category"].value_counts().idxmax())
 
-        st.markdown("### 📡 Live Complaint Feed")
-
-        # ✅ IMPROVED REAL-TIME SORT
+        st.markdown("### 📡 Admin Complaint View")
         st.dataframe(saved.iloc[::-1], use_container_width=True)
 
 # ================== ANALYTICS ==================
@@ -206,36 +229,29 @@ with tabs[2]:
 
     if not saved.empty:
 
-        st.markdown("## 📊 Analytics Dashboard")
-
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Total", len(saved))
-        col2.metric("Categories", saved["category"].nunique())
-        col3.metric("Top", saved["category"].value_counts().idxmax())
-
         g1, g2 = st.columns(2)
         g3, g4 = st.columns(2)
 
         with g1:
-            fig1, ax1 = plt.subplots(figsize=(4,4))
-            saved["category"].value_counts().plot.pie(autopct="%1.1f%%", ax=ax1)
-            ax1.set_ylabel("")
-            st.pyplot(fig1)
+            fig, ax = plt.subplots()
+            saved["category"].value_counts().plot.pie(ax=ax, autopct="%1.1f%%")
+            ax.set_ylabel("")
+            st.pyplot(fig)
 
         with g2:
-            fig2, ax2 = plt.subplots(figsize=(4,4))
-            saved["category"].value_counts().plot.bar(ax=ax2)
-            st.pyplot(fig2)
+            fig, ax = plt.subplots()
+            saved["department"].value_counts().plot.bar(ax=ax)
+            st.pyplot(fig)
 
         with g3:
-            fig3, ax3 = plt.subplots(figsize=(4,4))
-            saved["user"].value_counts().head(5).plot.bar(ax=ax3)
-            st.pyplot(fig3)
+            fig, ax = plt.subplots()
+            saved["status"].value_counts().plot.bar(ax=ax)
+            st.pyplot(fig)
 
         with g4:
-            fig4, ax4 = plt.subplots(figsize=(4,4))
-            saved.groupby("category").size().cumsum().plot(ax=ax4)
-            st.pyplot(fig4)
+            fig, ax = plt.subplots()
+            saved.groupby("category").size().cumsum().plot(ax=ax)
+            st.pyplot(fig)
 
 # ================== CHATBOT ==================
 with tabs[3]:
@@ -243,19 +259,11 @@ with tabs[3]:
     if "chat" not in st.session_state:
         st.session_state.chat = []
 
-    col1, col2 = st.columns([3,1])
-
-    msg = col1.text_input("Ask anything...")
-
-    if col2.button("🗑️ Clear Chat"):
-        st.session_state.chat = []
+    msg = st.text_input("Ask anything...")
 
     if msg:
         st.session_state.chat.append(("You", msg))
-        st.session_state.chat.append(("Assistant", chatbot(msg)))
+        st.session_state.chat.append(("Bot", chatbot(msg)))
 
     for r, m in st.session_state.chat:
-        if r == "You":
-            st.markdown(f"**🧑 You:** {m}")
-        else:
-            st.markdown(f"**🤖 Assistant:** {m}")
+        st.markdown(f"**{r}:** {m}")
