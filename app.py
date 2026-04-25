@@ -61,38 +61,57 @@ if "logged_in" not in st.session_state:
 if "user" not in st.session_state:
     st.session_state.user = ""
 
-# -------------------- LOGIN (UPDATED UI) --------------------
 def login():
 
-    col1, col2 = st.columns([2,1])
+    # 🔥 BACKGROUND IMAGE + UI STYLE
+    st.markdown(f"""
+    <style>
+    .stApp {{
+        background: url("https://images.unsplash.com/photo-1581092918056-0c4c3acd3789");
+        background-size: cover;
+    }}
 
-    with col1:
-        if os.path.exists("login_bg.jpg"):
-            st.image("login_bg.jpg", use_container_width=True)
+    .login-box {{
+        background: rgba(0,0,0,0.7);
+        padding: 40px;
+        border-radius: 15px;
+        width: 400px;
+        margin: auto;
+        margin-top: 100px;
+    }}
 
-    with col2:
-        st.markdown("## 🔐 SMART COMPLAINT CATEGORIZATION GOVERNMENT PORTAL")
+    .title {{
+        text-align: center;
+        font-size: 24px;
+        color: white;
+        margin-bottom: 20px;
+    }}
+    </style>
+    """, unsafe_allow_html=True)
 
-        u = st.text_input("Username")
-        p = st.text_input("Password", type="password")
+    # 🔥 CENTER BOX
+    st.markdown('<div class="login-box">', unsafe_allow_html=True)
 
-        if st.button("Login"):
-            c.execute("SELECT * FROM users WHERE username=? AND password=?", (u, p))
-            if c.fetchone():
-                st.session_state.logged_in = True
-                st.session_state.user = u
-                st.rerun()
-            else:
-                st.error("Invalid Credentials")
+    st.markdown('<div class="title">🏛️ SMART COMPLAINT CATEGORIZATION GOVERNMENT PORTAL</div>', unsafe_allow_html=True)
 
-        if st.button("Register"):
-            c.execute("INSERT INTO users VALUES (?,?)", (u, p))
-            conn.commit()
-            st.success("Registered")
+    u = st.text_input("Username")
+    p = st.text_input("Password", type="password")
 
-if not st.session_state.logged_in:
-    login()
-    st.stop()
+    if st.button("Login"):
+        c.execute("SELECT * FROM users WHERE username=? AND password=?", (u, p))
+        if c.fetchone():
+            st.session_state.logged_in = True
+            st.session_state.user = u
+            st.rerun()
+        else:
+            st.error("Invalid Credentials")
+
+    if st.button("Register"):
+        c.execute("INSERT INTO users VALUES (?,?)", (u, p))
+        conn.commit()
+        st.success("Registered")
+
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # -------------------- SIDEBAR --------------------
 st.sidebar.title("📊 Smart Dashboard")
