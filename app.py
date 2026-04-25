@@ -219,34 +219,41 @@ with tabs[1]:
 
         st.dataframe(saved.iloc[::-1], use_container_width=True)
 
-# ================== ANALYTICS (IMPROVED - NO EXTRA INSTALLS) ==================
+# ================== ANALYTICS (UPGRADED + CLEAN + NO EMPTY CHARTS) ==================
 with tabs[2]:
 
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
     if not saved.empty:
 
-        st.markdown("## 📊 Analytics Dashboard")
+        # 🔥 FIX NULL VALUES
+        saved.fillna({
+            "priority": "🟡 MEDIUM",
+            "status": "Pending",
+            "department": "General",
+            "timestamp": str(datetime.now())
+        }, inplace=True)
 
-        # ---- FIX TIMESTAMP ----
-        saved["timestamp"] = pd.to_datetime(saved["timestamp"], errors='coerce')
-        saved["timestamp"].fillna(pd.Timestamp.now(), inplace=True)
+        # 🔥 FIX TIMESTAMP
+        saved["timestamp"] = pd.to_datetime(saved["timestamp"], errors="coerce")
 
-        # ---- KPIs ----
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Total", len(saved))
-        col2.metric("Categories", saved["category"].nunique())
-        col3.metric("Departments", saved["department"].nunique())
+        st.markdown("## 📊 Smart Analytics Dashboard")
 
-        # ---- GRID LAYOUT ----
+        # KPI ROW
+        k1, k2, k3, k4 = st.columns(4)
+        k1.metric("Total", len(saved))
+        k2.metric("Users", saved["user"].nunique())
+        k3.metric("Top Category", saved["category"].value_counts().idxmax())
+        k4.metric("Departments", saved["department"].nunique())
+
+        # GRID
         g1, g2 = st.columns(2)
         g3, g4 = st.columns(2)
 
-        # ================= PIE =================
+        # 🔵 CATEGORY PIE
         with g1:
             st.markdown("### 🥧 Category Distribution")
-
-            fig1, ax1 = plt.subplots(figsize=(4,4))
+            fig1, ax1 = plt.subplots()
             saved["category"].value_counts().plot.pie(
                 autopct="%1.1f%%",
                 ax=ax1
@@ -254,53 +261,45 @@ with tabs[2]:
             ax1.set_ylabel("")
             st.pyplot(fig1)
 
-        # ================= BAR =================
+        # 🟣 STATUS DISTRIBUTION
         with g2:
-            st.markdown("### 📊 Category Count")
-
-            cat_counts = saved["category"].value_counts()
-
-            fig2, ax2 = plt.subplots(figsize=(4,4))
-            cat_counts.plot.bar(ax=ax2)
-            ax2.set_xlabel("Category")
-            ax2.set_ylabel("Count")
+            st.markdown("### 🚦 Status Overview")
+            fig2, ax2 = plt.subplots()
+            saved["status"].value_counts().plot.bar(ax=ax2)
             st.pyplot(fig2)
 
-        # ================= TREND (FIXED) =================
+        # 🟢 DEPARTMENT LOAD
         with g3:
-            st.markdown("### 📈 Complaints Over Time")
-
-            trend = saved.groupby(saved["timestamp"].dt.date).size()
-
-            fig3, ax3 = plt.subplots(figsize=(4,4))
-            trend.plot(marker='o', ax=ax3)
-            ax3.set_xlabel("Date")
-            ax3.set_ylabel("Complaints")
+            st.markdown("### 🏢 Department Load")
+            fig3, ax3 = plt.subplots()
+            saved["department"].value_counts().plot.bar(ax=ax3)
             st.pyplot(fig3)
 
-        # ================= DEPARTMENT =================
+        # 🔴 TIME TREND (FIXED)
         with g4:
-            st.markdown("### 🏢 Department Load")
+            st.markdown("### 📈 Complaints Over Time")
 
-            dept_counts = saved["department"].fillna("General").value_counts()
+            trend = saved.dropna(subset=["timestamp"])
+            trend = trend.groupby(trend["timestamp"].dt.date).size()
 
-            fig4, ax4 = plt.subplots(figsize=(4,4))
-            dept_counts.plot.bar(ax=ax4)
-            ax4.set_xlabel("Department")
-            ax4.set_ylabel("Complaints")
+            fig4, ax4 = plt.subplots()
+            trend.plot(ax=ax4)
             st.pyplot(fig4)
 
-        # ---- SIMPLE FILTER (LIKE CLICK SUBSTITUTE) ----
+        # 🔥 BONUS: FILTER (makes it feel dynamic)
         st.markdown("### 🔍 Filter Data")
 
         selected_cat = st.selectbox(
-            "Select Category",
+            "Filter by Category",
             ["All"] + list(saved["category"].unique())
         )
 
         if selected_cat != "All":
             filtered = saved[saved["category"] == selected_cat]
-            st.dataframe(filtered, use_container_width=True)
+        else:
+            filtered = saved
+
+        st.dataframe(filtered, use_container_width=True)
 
 # ================== CHATBOT ==================
 with tabs[3]:
