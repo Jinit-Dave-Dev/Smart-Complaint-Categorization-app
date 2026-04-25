@@ -31,7 +31,7 @@ st.markdown("""
 conn = sqlite3.connect("complaints.db", check_same_thread=False)
 c = conn.cursor()
 
-# CREATE BASE TABLE (OLD STRUCTURE SAFE)
+# Base table
 c.execute("""
 CREATE TABLE IF NOT EXISTS complaints (
     user TEXT,
@@ -42,10 +42,10 @@ CREATE TABLE IF NOT EXISTS complaints (
 )
 """)
 
-# 🔥 AUTO MIGRATION (ADD NEW COLUMNS IF MISSING)
-def add_column(col_name, col_type):
+# Auto migration
+def add_column(name, typ):
     try:
-        c.execute(f"ALTER TABLE complaints ADD COLUMN {col_name} {col_type}")
+        c.execute(f"ALTER TABLE complaints ADD COLUMN {name} {typ}")
     except:
         pass
 
@@ -91,7 +91,6 @@ if not st.session_state.logged_in:
 # -------------------- SIDEBAR --------------------
 st.sidebar.title("📊 Smart Dashboard")
 st.sidebar.write(f"👤 {st.session_state.user}")
-
 st.sidebar.markdown("### 👨‍💻 Developer")
 st.sidebar.write("Jinit Dave")
 
@@ -99,7 +98,7 @@ if st.sidebar.button("Logout"):
     st.session_state.logged_in = False
     st.rerun()
 
-# -------------------- LOAD MODEL --------------------
+# -------------------- LOAD --------------------
 vectorizer = pickle.load(open("tfidf_vectorizer.pkl", "rb"))
 le = pickle.load(open("label_encoder.pkl", "rb"))
 model = pickle.load(open("logistic_regression_model.pkl", "rb"))
@@ -110,14 +109,13 @@ if not os.path.exists(file_path):
 
 df = pd.read_csv(file_path)
 df.columns = df.columns.str.strip()
-
 complaint_col = next((c for c in df.columns if "complaint" in c.lower()), None)
 
 # -------------------- HELPERS --------------------
 def get_category(text):
     t = re.sub(r'[^a-zA-Z ]', ' ', str(text).lower())
-    if "road" in t: return "Road"
-    if "water" in t: return "Water"
+    if "road" in t or "pothole" in t: return "Road"
+    if "water" in t or "leak" in t: return "Water"
     if "garbage" in t: return "Garbage"
     if "electric" in t: return "Electricity"
     return "Other"
@@ -130,20 +128,31 @@ def get_department(category):
         "Electricity": "Electric Dept"
     }.get(category, "General")
 
+# -------------------- CHATBOT --------------------
 def chatbot(msg):
     m = msg.lower()
-    if any(x in m for x in ["hi","hello"]):
-        return "👋 Hello! How can I assist you?"
+
+    if any(x in m for x in ["hi", "hello", "hey"]):
+        return "👋 Hello! I'm your Smart Municipal Assistant."
+
     if "road" in m:
-        return "🛣️ Road issue → handled by Public Works."
+        return "🛣️ Road issue → Fix expected in 2-3 days."
+
     if "water" in m:
-        return "💧 Water issue → pipeline team assigned."
-    return "📌 Complaint noted."
+        return "💧 Water issue → Team assigned (24 hrs)."
+
+    if "electric" in m:
+        return "⚡ Electricity → Technician dispatched."
+
+    if "status" in m:
+        return "📊 Track using Tracking ID in Track tab."
+
+    return "📌 Submit complaint for proper tracking."
 
 # -------------------- UI --------------------
 st.title("🏛️ Smart Municipal Complaint System")
 
-tabs = st.tabs(["📝 Complaint", "📊 Dashboard", "📈 Analytics", "🤖 Chatbot"])
+tabs = st.tabs(["📝 Complaint", "📊 Dashboard", "📈 Analytics", "🔎 Track Complaint", "🤖 Chatbot"])
 
 # ================== COMPLAINT ==================
 with tabs[0]:
@@ -162,12 +171,10 @@ with tabs[0]:
 
         tracking_id = str(uuid.uuid4())[:8]
 
-        # 🔥 FIXED INSERT (SPECIFY COLUMNS)
         c.execute("""
-        INSERT INTO complaints (
-            id, user, complaint, prediction, category, confidence,
-            status, department, timestamp
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO complaints 
+        (id, user, complaint, prediction, category, confidence, status, department, timestamp)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             tracking_id,
             st.session_state.user,
@@ -184,9 +191,13 @@ with tabs[0]:
 
         st.success(f"Complaint Registered | ID: {tracking_id}")
 
-    st.markdown("### 📡 Your Complaints")
-    data = pd.read_sql_query("SELECT * FROM complaints WHERE user=?", conn, params=(st.session_state.user,))
-    st.dataframe(data, use_container_width=True)
+    st.markdown("### 📋 Your Complaints")
+    user_data = pd.read_sql_query(
+        "SELECT * FROM complaints WHERE user=?",
+        conn,
+        params=(st.session_state.user,)
+    )
+    st.dataframe(user_data.iloc[::-1], use_container_width=True)
 
 # ================== DASHBOARD ==================
 with tabs[1]:
@@ -198,11 +209,12 @@ with tabs[1]:
         saved.fillna("N/A", inplace=True)
 
         col1, col2, col3 = st.columns(3)
-        col1.metric("Total", len(saved))
+        col1.metric("Total Complaints", len(saved))
         col2.metric("Users", saved["user"].nunique())
         col3.metric("Top Category", saved["category"].value_counts().idxmax())
 
-        st.dataframe(saved, use_container_width=True)
+        st.markdown("### 📡 Live Feed")
+        st.dataframe(saved.iloc[::-1], use_container_width=True)
 
 # ================== ANALYTICS ==================
 with tabs[2]:
@@ -211,7 +223,7 @@ with tabs[2]:
 
     if not saved.empty:
 
-        saved["timestamp"] = pd.to_datetime(saved["timestamp"], errors='coerce')
+        saved["timestamp"] = pd.to_datetime(saved["timestamp"], errors="coerce")
 
         g1, g2 = st.columns(2)
         g3, g4 = st.columns(2)
@@ -237,8 +249,29 @@ with tabs[2]:
             saved.groupby(saved["timestamp"].dt.date).size().plot(ax=ax)
             st.pyplot(fig)
 
-# ================== CHATBOT ==================
+# ================== TRACK COMPLAINT ==================
 with tabs[3]:
+
+    st.subheader("🔎 Track Your Complaint")
+
+    track_id = st.text_input("Enter Tracking ID")
+
+    if st.button("Track Complaint"):
+
+        result = pd.read_sql_query(
+            "SELECT * FROM complaints WHERE id=?",
+            conn,
+            params=(track_id,)
+        )
+
+        if not result.empty:
+            st.success("Complaint Found")
+            st.dataframe(result, use_container_width=True)
+        else:
+            st.error("Invalid Tracking ID")
+
+# ================== CHATBOT ==================
+with tabs[4]:
 
     if "chat" not in st.session_state:
         st.session_state.chat = []
@@ -252,7 +285,7 @@ with tabs[3]:
 
     if msg:
         st.session_state.chat.append(("You", msg))
-        st.session_state.chat.append(("Bot", chatbot(msg)))
+        st.session_state.chat.append(("Assistant", chatbot(msg)))
 
     for r, m in st.session_state.chat:
         st.write(f"**{r}:** {m}")
