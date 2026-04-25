@@ -273,52 +273,51 @@ with tabs[2]:
 
         saved["confidence"] = pd.to_numeric(saved["confidence"], errors="coerce")
 
-        st.markdown("## 📊 Smart Analytics Dashboard (Interactive)")
+        st.markdown("## 📊 Smart Analytics Dashboard")
 
-        # -------- SESSION STATE (for click simulation) --------
-        if "selected_category" not in st.session_state:
-            st.session_state.selected_category = "All"
+        # -------- FILTERS (REAL INTERACTION) --------
+        col_f1, col_f2 = st.columns(2)
 
-        if "selected_department" not in st.session_state:
-            st.session_state.selected_department = "All"
-
-        # -------- FILTER UI (acts like click) --------
-        f1, f2 = st.columns(2)
-
-        with f1:
-            st.session_state.selected_category = st.selectbox(
-                "🎯 Click Category",
-                ["All"] + list(saved["category"].unique()),
-                index=0
+        with col_f1:
+            category_filter = st.selectbox(
+                "Filter by Category",
+                ["All"] + sorted(saved["category"].unique())
             )
 
-        with f2:
-            st.session_state.selected_department = st.selectbox(
-                "🏢 Click Department",
-                ["All"] + list(saved["department"].unique()),
-                index=0
+        with col_f2:
+            dept_filter = st.selectbox(
+                "Filter by Department",
+                ["All"] + sorted(saved["department"].unique())
             )
 
         # -------- APPLY FILTER --------
         filtered = saved.copy()
 
-        if st.session_state.selected_category != "All":
-            filtered = filtered[filtered["category"] == st.session_state.selected_category]
+        if category_filter != "All":
+            filtered = filtered[filtered["category"] == category_filter]
 
-        if st.session_state.selected_department != "All":
-            filtered = filtered[filtered["department"] == st.session_state.selected_department]
+        if dept_filter != "All":
+            filtered = filtered[filtered["department"] == dept_filter]
 
-        # -------- KPI --------
+        # -------- SAFE KPI --------
         k1, k2, k3, k4 = st.columns(4)
 
-        k1.metric("Total", len(filtered))
-        k2.metric("Users", filtered["user"].nunique() if not filtered.empty else 0)
+        total = len(filtered)
 
-        top_cat = filtered["category"].value_counts().idxmax() if not filtered.empty else "N/A"
-        top_dep = filtered["department"].value_counts().idxmax() if not filtered.empty else "N/A"
+        k1.metric("Total Complaints", total)
+        k2.metric("Users", filtered["user"].nunique() if total > 0 else 0)
 
-        k3.metric("Top Category", top_cat)
-        k4.metric("Top Department", top_dep)
+        k3.metric(
+            "Top Category",
+            filtered["category"].value_counts().idxmax()
+            if total > 0 else "N/A"
+        )
+
+        k4.metric(
+            "Top Department",
+            filtered["department"].value_counts().idxmax()
+            if total > 0 else "N/A"
+        )
 
         # -------- GRID --------
         g1, g2 = st.columns(2)
@@ -328,74 +327,44 @@ with tabs[2]:
         with g1:
             st.markdown("### 🥧 Category Distribution")
 
-            fig1, ax1 = plt.subplots()
-
-            cat_counts = filtered["category"].value_counts()
-
-            colors = [
-                "orange" if c == st.session_state.selected_category else "skyblue"
-                for c in cat_counts.index
-            ]
-
-            cat_counts.plot.pie(
+            fig1, ax1 = plt.subplots(figsize=(4,4))
+            filtered["category"].value_counts().plot.pie(
                 autopct="%1.1f%%",
-                colors=colors,
                 ax=ax1
             )
             ax1.set_ylabel("")
             st.pyplot(fig1)
 
-        # ================= BAR (HIGHLIGHT) =================
+        # ================= BAR =================
         with g2:
             st.markdown("### 📊 Department Load")
 
-            fig2, ax2 = plt.subplots()
-
-            dep_counts = filtered["department"].value_counts()
-
-            colors = [
-                "red" if d == st.session_state.selected_department else "gray"
-                for d in dep_counts.index
-            ]
-
-            dep_counts.plot.bar(ax=ax2, color=colors)
+            fig2, ax2 = plt.subplots(figsize=(4,4))
+            filtered["department"].value_counts().plot.bar(ax=ax2)
             st.pyplot(fig2)
 
         # ================= HIST =================
         with g3:
             st.markdown("### 📈 Confidence Distribution")
 
-            fig3, ax3 = plt.subplots()
-
+            fig3, ax3 = plt.subplots(figsize=(4,4))
             filtered["confidence"].dropna().plot.hist(bins=10, ax=ax3)
-
             st.pyplot(fig3)
 
         # ================= STATUS =================
         with g4:
-            st.markdown("### 🚦 Status Overview")
+            st.markdown("### 🚦 Complaint Status")
 
-            fig4, ax4 = plt.subplots()
-
-            status_counts = filtered["status"].value_counts()
-
-            status_counts.plot.bar(ax=ax4)
-
+            fig4, ax4 = plt.subplots(figsize=(4,4))
+            filtered["status"].value_counts().plot.bar(ax=ax4)
             st.pyplot(fig4)
 
-        # -------- DRILL DOWN --------
-        st.markdown("### 📋 Drill-down Data")
-
+        # -------- TABLE --------
+        st.markdown("### 📋 Detailed Data")
         st.dataframe(filtered.iloc[::-1], use_container_width=True)
 
-        # -------- RESET BUTTON --------
-        if st.button("🔄 Reset Filters"):
-            st.session_state.selected_category = "All"
-            st.session_state.selected_department = "All"
-            st.rerun()
-
     else:
-        st.warning("No data available yet.")
+        st.warning("No data available yet. Add complaints to see analytics.")
 
 # ================== CHATBOT ==================
 with tabs[3]:
