@@ -257,32 +257,22 @@ with tabs[1]:
         st.dataframe(saved.iloc[::-1], use_container_width=True)
         
 # ================== ANALYTICS ==================
+# ================== ANALYTICS (FIXED + BETTER CHARTS) ==================
 with tabs[2]:
 
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
     if not saved.empty:
 
-        # ---------------- FIX EMPTY VALUES ----------------
+        # -------- FIX EMPTY VALUES --------
         saved.fillna({
             "category": "Other",
             "department": "General",
             "status": "Pending",
-            "timestamp": str(datetime.now())
+            "confidence": "0"
         }, inplace=True)
 
-        # ---------------- FIX TIMESTAMP ----------------
-        saved["timestamp"] = pd.to_datetime(saved["timestamp"], errors="coerce")
-
-        # 🔥 CRITICAL FIX: If timestamp still bad → create realistic timeline
-        if saved["timestamp"].isna().all():
-            saved["timestamp"] = pd.date_range(
-                end=datetime.now(),
-                periods=len(saved),
-                freq="H"
-            )
-
-        # ---------------- FILTERS ----------------
+        # -------- FILTERS --------
         st.markdown("## 📊 Smart Analytics Dashboard")
 
         f1, f2 = st.columns(2)
@@ -299,7 +289,6 @@ with tabs[2]:
                 ["All"] + list(saved["department"].unique())
             )
 
-        # APPLY FILTERS
         filtered = saved.copy()
 
         if category_filter != "All":
@@ -308,18 +297,33 @@ with tabs[2]:
         if dept_filter != "All":
             filtered = filtered[filtered["department"] == dept_filter]
 
-        # ---------------- KPI ----------------
+        # -------- SAFE KPIs --------
         k1, k2, k3, k4 = st.columns(4)
-        k1.metric("Total", len(filtered))
-        k2.metric("Users", filtered["user"].nunique())
-        k3.metric("Top Category", filtered["category"].value_counts().idxmax())
-        k4.metric("Departments", filtered["department"].nunique())
 
-        # ---------------- GRID ----------------
+        total = len(filtered)
+
+        top_category = (
+            filtered["category"].value_counts().idxmax()
+            if not filtered.empty and not filtered["category"].isna().all()
+            else "N/A"
+        )
+
+        top_department = (
+            filtered["department"].value_counts().idxmax()
+            if not filtered.empty and not filtered["department"].isna().all()
+            else "N/A"
+        )
+
+        k1.metric("Total", total)
+        k2.metric("Users", filtered["user"].nunique() if total > 0 else 0)
+        k3.metric("Top Category", top_category)
+        k4.metric("Top Department", top_department)
+
+        # -------- GRID --------
         g1, g2 = st.columns(2)
         g3, g4 = st.columns(2)
 
-        # ================= PIE =================
+        # 🥧 PIE
         with g1:
             st.markdown("### 🥧 Category Distribution")
             fig1, ax1 = plt.subplots()
@@ -330,46 +334,37 @@ with tabs[2]:
             ax1.set_ylabel("")
             st.pyplot(fig1)
 
-        # ================= BAR =================
+        # 📊 BAR
         with g2:
             st.markdown("### 📊 Department Load")
             fig2, ax2 = plt.subplots()
             filtered["department"].value_counts().plot.bar(ax=ax2)
             st.pyplot(fig2)
 
-        # ================= HISTOGRAM =================
+        # 📈 HISTOGRAM
         with g3:
             st.markdown("### 📈 Confidence Distribution")
 
-            # convert confidence safely
             filtered["confidence"] = pd.to_numeric(filtered["confidence"], errors="coerce")
 
             fig3, ax3 = plt.subplots()
             filtered["confidence"].dropna().plot.hist(bins=10, ax=ax3)
             st.pyplot(fig3)
 
-        # ================= LINE (FIXED) =================
+        # 🚦 STATUS CHART (REPLACED TIME CHART)
         with g4:
-            st.markdown("### 📅 Complaints Over Time")
-
-            trend = (
-                filtered
-                .dropna(subset=["timestamp"])
-                .groupby(filtered["timestamp"].dt.date)
-                .size()
-            )
-
-            # 🔥 EXTRA FIX: if still empty → fallback cumulative
-            if trend.empty:
-                trend = pd.Series(range(1, len(filtered)+1))
+            st.markdown("### 🚦 Complaint Status")
 
             fig4, ax4 = plt.subplots()
-            trend.plot(ax=ax4)
+            filtered["status"].value_counts().plot.bar(ax=ax4)
             st.pyplot(fig4)
 
-        # ---------------- DRILL TABLE ----------------
-        st.markdown("### 📋 Filtered Data View")
+        # -------- TABLE --------
+        st.markdown("### 📋 Filtered Data")
         st.dataframe(filtered.iloc[::-1], use_container_width=True)
+
+    else:
+        st.warning("No data available yet. Add complaints to see analytics.")
 
 # ================== CHATBOT ==================
 with tabs[3]:
