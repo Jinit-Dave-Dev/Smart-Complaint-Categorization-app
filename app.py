@@ -48,17 +48,66 @@ if "logged_in" not in st.session_state:
 if "user" not in st.session_state:
     st.session_state.user = ""
 
-# -------------------- LOGIN --------------------
 def login():
 
-    st.image("https://images.unsplash.com/photo-1581092918056-0c4c3acd3789", use_container_width=True)
+    st.markdown(f"""
+    <style>
 
-    st.markdown("<h2 style='text-align:center;'>🏛️ SMART COMPLAINT CATEGORIZATION GOVERNMENT PORTAL</h2>", unsafe_allow_html=True)
+    /* FULL BACKGROUND IMAGE */
+    .stApp {{
+        background-image: url("https://images.unsplash.com/photo-1506744038136-46273834b3fb");
+        background-size: cover;
+        background-position: center;
+        background-repeat: no-repeat;
+    }}
+
+    /* CENTER CARD */
+    .login-container {{
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 90vh;
+    }}
+
+    .login-box {{
+        background: rgba(0, 0, 0, 0.75);
+        padding: 40px;
+        border-radius: 15px;
+        width: 380px;
+        box-shadow: 0px 0px 25px rgba(0,0,0,0.6);
+    }}
+
+    .title {{
+        text-align: center;
+        font-size: 22px;
+        font-weight: bold;
+        color: white;
+        margin-bottom: 20px;
+    }}
+
+    /* INPUT STYLE */
+    input {{
+        border-radius: 8px !important;
+    }}
+
+    </style>
+    """, unsafe_allow_html=True)
+
+    # CENTER WRAPPER
+    st.markdown('<div class="login-container">', unsafe_allow_html=True)
+    st.markdown('<div class="login-box">', unsafe_allow_html=True)
+
+    st.markdown(
+        '<div class="title">🏛️ SMART COMPLAINT CATEGORIZATION<br>GOVERNMENT PORTAL</div>',
+        unsafe_allow_html=True
+    )
 
     u = st.text_input("Username")
     p = st.text_input("Password", type="password")
 
-    if st.button("Login"):
+    col1, col2 = st.columns(2)
+
+    if col1.button("Login"):
         c.execute("SELECT * FROM users WHERE username=? AND password=?", (u, p))
         if c.fetchone():
             st.session_state.logged_in = True
@@ -67,14 +116,13 @@ def login():
         else:
             st.error("Invalid Credentials")
 
-    if st.button("Register"):
+    if col2.button("Register"):
         c.execute("INSERT INTO users VALUES (?,?)", (u, p))
         conn.commit()
         st.success("Registered")
 
-if not st.session_state.logged_in:
-    login()
-    st.stop()
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # -------------------- SIDEBAR --------------------
 st.sidebar.title("📊 Smart Dashboard")
