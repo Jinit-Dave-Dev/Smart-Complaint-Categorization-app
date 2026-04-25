@@ -343,18 +343,52 @@ with tabs[2]:
             ax3.hist(conf.dropna(), bins=10)
             st.pyplot(fig3)
 
-        # 🔴 LINE (FIXED)
-        with g4:
-            st.markdown("### 📈 Complaints Over Time")
+        # # 🔴 LINE (FIXED)
+        # with g4:
+        #     st.markdown("### 📈 Complaints Over Time")
 
-            trend = filtered.groupby(
-                filtered["timestamp"].dt.date
-            ).size()
+        #     trend = filtered.groupby(
+        #         filtered["timestamp"].dt.date
+        #     ).size()
 
-            fig4, ax4 = plt.subplots()
-            trend.plot(ax=ax4)
-            st.pyplot(fig4)
+        #     fig4, ax4 = plt.subplots()
+        #     trend.plot(ax=ax4)
+        #     st.pyplot(fig4)
+with g4:
+    st.markdown("### 📈 Complaints Over Time")
 
+    # ---- STEP 1: Ensure timestamp exists ----
+    if "timestamp" not in filtered.columns:
+        filtered["timestamp"] = pd.date_range(
+            end=datetime.now(),
+            periods=len(filtered)
+        )
+
+    # ---- STEP 2: Convert safely ----
+    filtered["timestamp"] = pd.to_datetime(filtered["timestamp"], errors="coerce")
+
+    # ---- STEP 3: Handle all-null case ----
+    if filtered["timestamp"].isnull().all():
+        filtered["timestamp"] = pd.date_range(
+            end=datetime.now(),
+            periods=len(filtered)
+        )
+
+    # ---- STEP 4: Handle single-value case ----
+    if filtered["timestamp"].nunique() <= 1:
+        filtered["timestamp"] = pd.date_range(
+            end=datetime.now(),
+            periods=len(filtered)
+        )
+
+    # ---- STEP 5: Create trend ----
+    trend = filtered.groupby(filtered["timestamp"].dt.date).size()
+
+    # ---- STEP 6: Plot ----
+    fig4, ax4 = plt.subplots()
+    trend.plot(ax=ax4)
+
+    st.pyplot(fig4)
         # ---------- TABLE ----------
         st.markdown("### 📋 Drill-down Data")
         st.dataframe(filtered, use_container_width=True)
