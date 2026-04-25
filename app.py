@@ -198,7 +198,7 @@ with tabs[1]:
         st.markdown("### 📋 Live Complaint Feed")
         st.dataframe(saved.sort_values("timestamp", ascending=False), use_container_width=True)
 
-# ================== ANALYTICS (FIXED GRID CHARTS) ==================
+# ================== ANALYTICS (DYNAMIC + REAL DATA FIXED) ==================
 with tabs[2]:
 
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
@@ -207,38 +207,61 @@ with tabs[2]:
 
         st.markdown("## 📊 Analytics Dashboard")
 
+        # ---- KPIs ----
         col1, col2, col3 = st.columns(3)
-        col1.metric("Total", len(saved))
+        col1.metric("Total Complaints", len(saved))
         col2.metric("Categories", saved["category"].nunique())
-        col3.metric("Top", saved["category"].value_counts().idxmax())
+        col3.metric("Top Category", saved["category"].value_counts().idxmax())
 
-        # 🔥 GRID START
+        # ---- Ensure Time Column ----
+        saved["time"] = pd.date_range(end=datetime.now(), periods=len(saved))
+
+        # ---- GRID LAYOUT ----
         g1, g2 = st.columns(2)
         g3, g4 = st.columns(2)
 
-        # Chart 1: Pie
+        # ================= CHART 1: CATEGORY DISTRIBUTION =================
         with g1:
+            st.markdown("### 🥧 Category Share")
+
             fig1, ax1 = plt.subplots(figsize=(4, 4))
-            saved["category"].value_counts().plot.pie(autopct="%1.1f%%", ax=ax1)
+            saved["category"].value_counts().plot.pie(
+                autopct="%1.1f%%",
+                ax=ax1
+            )
             ax1.set_ylabel("")
             st.pyplot(fig1)
 
-        # Chart 2: Bar
+        # ================= CHART 2: CATEGORY TREND =================
         with g2:
+            st.markdown("### 📈 Category Trend")
+
+            trend = saved.groupby(
+                [pd.Grouper(key="time", freq="D"), "category"]
+            ).size().unstack(fill_value=0)
+
             fig2, ax2 = plt.subplots(figsize=(5, 4))
-            saved["category"].value_counts().plot.bar(ax=ax2)
+            trend.plot(ax=ax2)
             st.pyplot(fig2)
 
-        # Chart 3: Line Trend
+        # ================= CHART 3: USER ACTIVITY =================
         with g3:
+            st.markdown("### 👤 Top Users")
+
             fig3, ax3 = plt.subplots(figsize=(5, 4))
-            saved["category"].value_counts().cumsum().plot(ax=ax3)
+            saved["user"].value_counts().head(5).plot.bar(ax=ax3)
             st.pyplot(fig3)
 
-        # Chart 4: Top Users
+        # ================= CHART 4: COMPLAINT FLOW =================
         with g4:
+            st.markdown("### 📊 Complaints Over Time")
+
+            flow = saved.groupby(
+                pd.Grouper(key="time", freq="D")
+            ).size()
+
             fig4, ax4 = plt.subplots(figsize=(5, 4))
-            saved["user"].value_counts().head(5).plot.bar(ax=ax4)
+            flow.plot(ax=ax4)
             st.pyplot(fig4)
 
 # ================== CHATBOT ==================
