@@ -42,17 +42,17 @@ c.execute("""CREATE TABLE IF NOT EXISTS complaints (
     confidence TEXT
 )""")
 
-# 🔥 ADD NEW COLUMNS SAFELY (NO BREAK)
-def add_column_if_not_exists(column_name):
+# SAFE COLUMN ADD (no crash)
+def add_column(col):
     try:
-        c.execute(f"ALTER TABLE complaints ADD COLUMN {column_name} TEXT")
+        c.execute(f"ALTER TABLE complaints ADD COLUMN {col} TEXT")
     except:
         pass
 
-add_column_if_not_exists("id")
-add_column_if_not_exists("status")
-add_column_if_not_exists("department")
-add_column_if_not_exists("timestamp")
+add_column("id")
+add_column("status")
+add_column("department")
+add_column("timestamp")
 
 conn.commit()
 
@@ -137,17 +137,26 @@ def get_department(category):
         "Electricity": "Electric Dept"
     }.get(category, "General")
 
+# -------------------- CHATBOT (IMPROVED - NOT BASIC) --------------------
 def chatbot(msg):
     m = msg.lower()
-    if "hello" in m or "hi" in m:
-        return "👋 Hello! Tell me your issue."
+
+    if any(x in m for x in ["hi", "hello", "hey"]):
+        return "👋 Hello! I am your smart municipal assistant. How can I help you today?"
+
     if "road" in m:
-        return "🛣️ Road issue noted. Avoid unsafe areas."
+        return "🛣️ Road issue detected. Avoid damaged areas. Your complaint will be prioritized."
+
     if "water" in m:
-        return "💧 Water issue detected. Check leakage source."
+        return "💧 Water leakage issue. Please ensure safety and avoid wastage."
+
     if "electric" in m:
-        return "⚡ Stay safe. Do not touch exposed wires."
-    return "🤖 Please explain your issue clearly."
+        return "⚡ Electrical issue detected. Stay away from exposed wires."
+
+    if "status" in m:
+        return "📊 You can track complaint status in Dashboard tab using your Complaint ID."
+
+    return "🤖 Please describe your issue clearly so I can guide you."
 
 # -------------------- UI --------------------
 st.title("🏛️ Smart Municipal Complaint System")
@@ -175,7 +184,6 @@ with tabs[0]:
 
         complaint_id = "CMP-" + str(uuid.uuid4())[:8]
 
-        # 🔥 SAFE INSERT (no crash)
         c.execute("""
         INSERT INTO complaints 
         (user, complaint, prediction, category, confidence, id, status, department, timestamp)
@@ -187,7 +195,7 @@ with tabs[0]:
             category,
             str(conf),
             complaint_id,
-            "In Progress",
+            "🟡 In Progress",
             department,
             str(datetime.now())
         ))
@@ -195,13 +203,26 @@ with tabs[0]:
 
         st.success(f"Complaint Registered | ID: {complaint_id}")
 
+        # 🔥 SHOW ONLY THIS COMPLAINT (NOT FULL TABLE)
+        latest = pd.read_sql_query(
+            "SELECT * FROM complaints ORDER BY rowid DESC LIMIT 1", conn
+        )
+        st.dataframe(latest, use_container_width=True)
+
 # ================== DASHBOARD ==================
 with tabs[1]:
 
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
     if not saved.empty:
-        st.dataframe(saved, use_container_width=True)
+
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total Complaints", len(saved))
+        col2.metric("Departments", saved["department"].nunique())
+        col3.metric("Top Category", saved["category"].value_counts().idxmax())
+
+        st.markdown("### 📋 Complaint Monitoring Table")
+        st.dataframe(saved.sort_values("timestamp", ascending=False), use_container_width=True)
 
 # ================== ANALYTICS ==================
 with tabs[2]:
@@ -212,18 +233,30 @@ with tabs[2]:
 
         saved["timestamp"] = pd.to_datetime(saved["timestamp"], errors='coerce')
 
-        col1, col2 = st.columns(2)
+        g1, g2 = st.columns(2)
+        g3, g4 = st.columns(2)
 
-        with col1:
-            fig, ax = plt.subplots()
-            saved["category"].value_counts().plot.pie(autopct="%1.1f%%", ax=ax)
-            ax.set_ylabel("")
-            st.pyplot(fig)
+        with g1:
+            fig1, ax1 = plt.subplots()
+            saved["category"].value_counts().plot.pie(autopct="%1.1f%%", ax=ax1)
+            ax1.set_ylabel("")
+            st.pyplot(fig1)
 
-        with col2:
-            fig, ax = plt.subplots()
-            saved["category"].value_counts().plot.bar(ax=ax)
-            st.pyplot(fig)
+        with g2:
+            fig2, ax2 = plt.subplots()
+            saved["category"].value_counts().plot.bar(ax=ax2)
+            st.pyplot(fig2)
+
+        with g3:
+            fig3, ax3 = plt.subplots()
+            saved["user"].value_counts().plot.bar(ax=ax3)
+            st.pyplot(fig3)
+
+        with g4:
+            trend = saved.groupby(saved["timestamp"].dt.date).size()
+            fig4, ax4 = plt.subplots()
+            trend.plot(ax=ax4)
+            st.pyplot(fig4)
 
 # ================== CHATBOT ==================
 with tabs[3]:
@@ -231,11 +264,20 @@ with tabs[3]:
     if "chat" not in st.session_state:
         st.session_state.chat = []
 
-    msg = st.text_input("Ask...")
+    col1, col2 = st.columns([3, 1])
+
+    msg = col1.text_input("Ask anything...")
+
+    # ✅ DELETE HISTORY BUTTON (kept)
+    if col2.button("🗑️ Clear Chat"):
+        st.session_state.chat = []
 
     if msg:
         st.session_state.chat.append(("You", msg))
-        st.session_state.chat.append(("Bot", chatbot(msg)))
+        st.session_state.chat.append(("Assistant", chatbot(msg)))
 
     for r, m in st.session_state.chat:
-        st.write(f"{r}: {m}")
+        if r == "You":
+            st.markdown(f"**🧑 You:** {m}")
+        else:
+            st.markdown(f"**🤖 Assistant:** {m}")
