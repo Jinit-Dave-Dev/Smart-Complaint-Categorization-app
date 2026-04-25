@@ -219,37 +219,88 @@ with tabs[1]:
 
         st.dataframe(saved.iloc[::-1], use_container_width=True)
 
-# ================== ANALYTICS ==================
+# ================== ANALYTICS (IMPROVED - NO EXTRA INSTALLS) ==================
 with tabs[2]:
 
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
     if not saved.empty:
 
+        st.markdown("## 📊 Analytics Dashboard")
+
+        # ---- FIX TIMESTAMP ----
+        saved["timestamp"] = pd.to_datetime(saved["timestamp"], errors='coerce')
+        saved["timestamp"].fillna(pd.Timestamp.now(), inplace=True)
+
+        # ---- KPIs ----
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total", len(saved))
+        col2.metric("Categories", saved["category"].nunique())
+        col3.metric("Departments", saved["department"].nunique())
+
+        # ---- GRID LAYOUT ----
         g1, g2 = st.columns(2)
         g3, g4 = st.columns(2)
 
+        # ================= PIE =================
         with g1:
-            fig, ax = plt.subplots()
-            saved["category"].value_counts().plot.pie(autopct="%1.1f%%", ax=ax)
-            ax.set_ylabel("")
-            st.pyplot(fig)
+            st.markdown("### 🥧 Category Distribution")
 
+            fig1, ax1 = plt.subplots(figsize=(4,4))
+            saved["category"].value_counts().plot.pie(
+                autopct="%1.1f%%",
+                ax=ax1
+            )
+            ax1.set_ylabel("")
+            st.pyplot(fig1)
+
+        # ================= BAR =================
         with g2:
-            fig, ax = plt.subplots()
-            saved["category"].value_counts().plot.bar(ax=ax)
-            st.pyplot(fig)
+            st.markdown("### 📊 Category Count")
 
+            cat_counts = saved["category"].value_counts()
+
+            fig2, ax2 = plt.subplots(figsize=(4,4))
+            cat_counts.plot.bar(ax=ax2)
+            ax2.set_xlabel("Category")
+            ax2.set_ylabel("Count")
+            st.pyplot(fig2)
+
+        # ================= TREND (FIXED) =================
         with g3:
-            fig, ax = plt.subplots()
-            saved["department"].value_counts().plot.bar(ax=ax)
-            st.pyplot(fig)
+            st.markdown("### 📈 Complaints Over Time")
 
+            trend = saved.groupby(saved["timestamp"].dt.date).size()
+
+            fig3, ax3 = plt.subplots(figsize=(4,4))
+            trend.plot(marker='o', ax=ax3)
+            ax3.set_xlabel("Date")
+            ax3.set_ylabel("Complaints")
+            st.pyplot(fig3)
+
+        # ================= DEPARTMENT =================
         with g4:
-            saved["timestamp"] = pd.to_datetime(saved["timestamp"], errors='coerce')
-            fig, ax = plt.subplots()
-            saved.groupby(saved["timestamp"].dt.date).size().plot(ax=ax)
-            st.pyplot(fig)
+            st.markdown("### 🏢 Department Load")
+
+            dept_counts = saved["department"].fillna("General").value_counts()
+
+            fig4, ax4 = plt.subplots(figsize=(4,4))
+            dept_counts.plot.bar(ax=ax4)
+            ax4.set_xlabel("Department")
+            ax4.set_ylabel("Complaints")
+            st.pyplot(fig4)
+
+        # ---- SIMPLE FILTER (LIKE CLICK SUBSTITUTE) ----
+        st.markdown("### 🔍 Filter Data")
+
+        selected_cat = st.selectbox(
+            "Select Category",
+            ["All"] + list(saved["category"].unique())
+        )
+
+        if selected_cat != "All":
+            filtered = saved[saved["category"] == selected_cat]
+            st.dataframe(filtered, use_container_width=True)
 
 # ================== CHATBOT ==================
 with tabs[3]:
