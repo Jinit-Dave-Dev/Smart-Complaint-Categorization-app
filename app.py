@@ -257,6 +257,7 @@ with tabs[1]:
         st.dataframe(saved.iloc[::-1], use_container_width=True)
         
 # ================== ANALYTICS ==================
+# ================== ANALYTICS ==================
 with tabs[2]:
 
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
@@ -275,37 +276,36 @@ with tabs[2]:
 
         saved["timestamp"] = pd.to_datetime(saved["timestamp"], errors="coerce")
 
-        # 🔥 FORCE VARIATION (fix blank timeline)
-        if saved["timestamp"].nunique() <= 1:
+        # ---------- FIX TIMESTAMP ISSUE ----------
+        if saved["timestamp"].isnull().all() or saved["timestamp"].nunique() <= 1:
             saved["timestamp"] = pd.date_range(
                 end=datetime.now(),
                 periods=len(saved)
             )
 
-        # ---------- DRILL-DOWN FILTER ----------
-        st.markdown("### 🎯 Drill Down Control")
+        # ---------- FILTER ----------
+        st.markdown("### 🎯 Drill Down")
 
         drill = st.selectbox(
-            "Select Analysis Type",
-            ["Overall", "Category", "Department", "User"]
+            "Select Filter",
+            ["All", "Category", "Department", "User"]
         )
 
+        filtered = saved.copy()
+
         if drill == "Category":
-            value = st.selectbox("Select Category", saved["category"].unique())
-            filtered = saved[saved["category"] == value]
+            val = st.selectbox("Select Category", saved["category"].unique())
+            filtered = saved[saved["category"] == val]
 
         elif drill == "Department":
-            value = st.selectbox("Select Department", saved["department"].unique())
-            filtered = saved[saved["department"] == value]
+            val = st.selectbox("Select Department", saved["department"].unique())
+            filtered = saved[saved["department"] == val]
 
         elif drill == "User":
-            value = st.selectbox("Select User", saved["user"].unique())
-            filtered = saved[saved["user"] == value]
+            val = st.selectbox("Select User", saved["user"].unique())
+            filtered = saved[saved["user"] == val]
 
-        else:
-            filtered = saved
-
-        # ---------- KPIs ----------
+        # ---------- KPI ----------
         k1, k2, k3, k4 = st.columns(4)
         k1.metric("Total", len(filtered))
         k2.metric("Users", filtered["user"].nunique())
@@ -316,71 +316,47 @@ with tabs[2]:
         g1, g2 = st.columns(2)
         g3, g4 = st.columns(2)
 
-        # 🔵 PIE
+        # PIE
         with g1:
             st.markdown("### 🥧 Category Distribution")
             fig1, ax1 = plt.subplots()
-            filtered["category"].value_counts().plot.pie(
-                autopct="%1.1f%%",
-                ax=ax1
-            )
+            filtered["category"].value_counts().plot.pie(autopct="%1.1f%%", ax=ax1)
             ax1.set_ylabel("")
             st.pyplot(fig1)
 
-        # 🟣 BAR
+        # BAR
         with g2:
             st.markdown("### 📊 Department Load")
             fig2, ax2 = plt.subplots()
             filtered["department"].value_counts().plot.bar(ax=ax2)
             st.pyplot(fig2)
 
-        # 🟢 HISTOGRAM
+        # HISTOGRAM
         with g3:
             st.markdown("### 📉 Confidence Spread")
             conf = pd.to_numeric(filtered["confidence"], errors="coerce")
-
             fig3, ax3 = plt.subplots()
             ax3.hist(conf.dropna(), bins=10)
             st.pyplot(fig3)
-            
-with g4:
-    st.markdown("### 📈 Complaints Over Time")
 
-    # ---- STEP 1: Ensure timestamp exists ----
-    if "timestamp" not in filtered.columns:
-        filtered["timestamp"] = pd.date_range(
-            end=datetime.now(),
-            periods=len(filtered)
-        )
+        # LINE (FIXED)
+        with g4:
+            st.markdown("### 📈 Complaints Over Time")
 
-    # ---- STEP 2: Convert safely ----
-    filtered["timestamp"] = pd.to_datetime(filtered["timestamp"], errors="coerce")
+            trend = filtered.groupby(
+                filtered["timestamp"].dt.date
+            ).size()
 
-    # ---- STEP 3: Handle all-null case ----
-    if filtered["timestamp"].isnull().all():
-        filtered["timestamp"] = pd.date_range(
-            end=datetime.now(),
-            periods=len(filtered)
-        )
+            fig4, ax4 = plt.subplots()
+            trend.plot(ax=ax4)
+            st.pyplot(fig4)
 
-    # ---- STEP 4: Handle single-value case ----
-    if filtered["timestamp"].nunique() <= 1:
-        filtered["timestamp"] = pd.date_range(
-            end=datetime.now(),
-            periods=len(filtered)
-        )
-
-    # ---- STEP 5: Create trend ----
-    trend = filtered.groupby(filtered["timestamp"].dt.date).size()
-
-    # ---- STEP 6: Plot ----
-    fig4, ax4 = plt.subplots()
-    trend.plot(ax=ax4)
-
-    st.pyplot(fig4)
-        # ---------- TABLE ----------
+        # ---------- TABLE (IMPORTANT: SAME INDENT LEVEL) ----------
         st.markdown("### 📋 Drill-down Data")
         st.dataframe(filtered, use_container_width=True)
+
+    else:
+        st.warning("No data available yet.")
 
 # ================== CHATBOT ==================
 with tabs[3]:
