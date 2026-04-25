@@ -32,7 +32,6 @@ def add_column(col, typ):
     except:
         pass
 
-# ✅ ADD ALL REQUIRED COLUMNS
 add_column("id", "TEXT")
 add_column("priority", "TEXT")
 add_column("status", "TEXT")
@@ -48,57 +47,47 @@ if "logged_in" not in st.session_state:
 if "user" not in st.session_state:
     st.session_state.user = ""
 
+# -------------------- LOGIN --------------------
 def login():
 
-    st.markdown(f"""
+    st.markdown("""
     <style>
-
-    /* FULL BACKGROUND IMAGE */
-    .stApp {{
+    .stApp {
         background-image: url("https://images.unsplash.com/photo-1506744038136-46273834b3fb");
         background-size: cover;
         background-position: center;
-        background-repeat: no-repeat;
-    }}
+    }
 
-    /* CENTER CARD */
-    .login-container {{
+    .login-container {
         display: flex;
         justify-content: center;
         align-items: center;
         height: 90vh;
-    }}
+    }
 
-    .login-box {{
-        background: rgba(0, 0, 0, 0.75);
+    .login-box {
+        background: rgba(0,0,0,0.75);
         padding: 40px;
         border-radius: 15px;
         width: 380px;
         box-shadow: 0px 0px 25px rgba(0,0,0,0.6);
-    }}
+    }
 
-    .title {{
+    .title {
         text-align: center;
         font-size: 22px;
         font-weight: bold;
         color: white;
         margin-bottom: 20px;
-    }}
-
-    /* INPUT STYLE */
-    input {{
-        border-radius: 8px !important;
-    }}
-
+    }
     </style>
     """, unsafe_allow_html=True)
 
-    # CENTER WRAPPER
     st.markdown('<div class="login-container">', unsafe_allow_html=True)
     st.markdown('<div class="login-box">', unsafe_allow_html=True)
 
     st.markdown(
-        '<div class="title">🏛️ SMART COMPLAINT CATEGORIZATION<br>GOVERNMENT PORTAL</div>',
+        '<div class="title">🏛️ SMART COMPLAINT CATEGORIZATION GOVERNMENT PORTAL</div>',
         unsafe_allow_html=True
     )
 
@@ -123,6 +112,11 @@ def login():
 
     st.markdown('</div>', unsafe_allow_html=True)
     st.markdown('</div>', unsafe_allow_html=True)
+
+
+if not st.session_state.logged_in:
+    login()
+    st.stop()
 
 # -------------------- SIDEBAR --------------------
 st.sidebar.title("📊 Smart Dashboard")
@@ -155,8 +149,7 @@ def get_department(cat):
     }.get(cat, "General")
 
 def get_priority(text):
-    t = text.lower()
-    if any(x in t for x in ["fire","accident","danger"]):
+    if any(x in text.lower() for x in ["fire","danger","accident"]):
         return "🔴 HIGH"
     return "🟡 MEDIUM"
 
@@ -213,9 +206,7 @@ with tabs[0]:
 
         conf = round(model.predict_proba(X).max() * 100, 2)
         tracking_id = str(uuid.uuid4())[:8]
-        timestamp = str(datetime.now())
 
-        # ✅ FIXED INSERT (NO ERROR)
         c.execute("""
         INSERT INTO complaints (
             id, user, complaint, prediction, category, confidence,
@@ -231,7 +222,7 @@ with tabs[0]:
             priority,
             "Pending",
             department,
-            timestamp
+            str(datetime.now())
         ))
 
         conn.commit()
@@ -268,7 +259,6 @@ with tabs[2]:
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
     if not saved.empty:
-
         saved.fillna({
             "priority": "🟡 MEDIUM",
             "status": "Pending",
