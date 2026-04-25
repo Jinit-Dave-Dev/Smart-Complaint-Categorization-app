@@ -257,14 +257,13 @@ with tabs[1]:
         st.dataframe(saved.iloc[::-1], use_container_width=True)
         
 # ================== ANALYTICS ==================
-# ================== ANALYTICS (FIXED + BETTER CHARTS) ==================
 with tabs[2]:
 
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
     if not saved.empty:
 
-        # -------- FIX EMPTY VALUES --------
+        # -------- FIX DATA --------
         saved.fillna({
             "category": "Other",
             "department": "General",
@@ -272,99 +271,131 @@ with tabs[2]:
             "confidence": "0"
         }, inplace=True)
 
-        # -------- FILTERS --------
-        st.markdown("## 📊 Smart Analytics Dashboard")
+        saved["confidence"] = pd.to_numeric(saved["confidence"], errors="coerce")
 
+        st.markdown("## 📊 Smart Analytics Dashboard (Interactive)")
+
+        # -------- SESSION STATE (for click simulation) --------
+        if "selected_category" not in st.session_state:
+            st.session_state.selected_category = "All"
+
+        if "selected_department" not in st.session_state:
+            st.session_state.selected_department = "All"
+
+        # -------- FILTER UI (acts like click) --------
         f1, f2 = st.columns(2)
 
         with f1:
-            category_filter = st.selectbox(
-                "Filter by Category",
-                ["All"] + list(saved["category"].unique())
+            st.session_state.selected_category = st.selectbox(
+                "🎯 Click Category",
+                ["All"] + list(saved["category"].unique()),
+                index=0
             )
 
         with f2:
-            dept_filter = st.selectbox(
-                "Filter by Department",
-                ["All"] + list(saved["department"].unique())
+            st.session_state.selected_department = st.selectbox(
+                "🏢 Click Department",
+                ["All"] + list(saved["department"].unique()),
+                index=0
             )
 
+        # -------- APPLY FILTER --------
         filtered = saved.copy()
 
-        if category_filter != "All":
-            filtered = filtered[filtered["category"] == category_filter]
+        if st.session_state.selected_category != "All":
+            filtered = filtered[filtered["category"] == st.session_state.selected_category]
 
-        if dept_filter != "All":
-            filtered = filtered[filtered["department"] == dept_filter]
+        if st.session_state.selected_department != "All":
+            filtered = filtered[filtered["department"] == st.session_state.selected_department]
 
-        # -------- SAFE KPIs --------
+        # -------- KPI --------
         k1, k2, k3, k4 = st.columns(4)
 
-        total = len(filtered)
+        k1.metric("Total", len(filtered))
+        k2.metric("Users", filtered["user"].nunique() if not filtered.empty else 0)
 
-        top_category = (
-            filtered["category"].value_counts().idxmax()
-            if not filtered.empty and not filtered["category"].isna().all()
-            else "N/A"
-        )
+        top_cat = filtered["category"].value_counts().idxmax() if not filtered.empty else "N/A"
+        top_dep = filtered["department"].value_counts().idxmax() if not filtered.empty else "N/A"
 
-        top_department = (
-            filtered["department"].value_counts().idxmax()
-            if not filtered.empty and not filtered["department"].isna().all()
-            else "N/A"
-        )
-
-        k1.metric("Total", total)
-        k2.metric("Users", filtered["user"].nunique() if total > 0 else 0)
-        k3.metric("Top Category", top_category)
-        k4.metric("Top Department", top_department)
+        k3.metric("Top Category", top_cat)
+        k4.metric("Top Department", top_dep)
 
         # -------- GRID --------
         g1, g2 = st.columns(2)
         g3, g4 = st.columns(2)
 
-        # 🥧 PIE
+        # ================= PIE =================
         with g1:
             st.markdown("### 🥧 Category Distribution")
+
             fig1, ax1 = plt.subplots()
-            filtered["category"].value_counts().plot.pie(
+
+            cat_counts = filtered["category"].value_counts()
+
+            colors = [
+                "orange" if c == st.session_state.selected_category else "skyblue"
+                for c in cat_counts.index
+            ]
+
+            cat_counts.plot.pie(
                 autopct="%1.1f%%",
+                colors=colors,
                 ax=ax1
             )
             ax1.set_ylabel("")
             st.pyplot(fig1)
 
-        # 📊 BAR
+        # ================= BAR (HIGHLIGHT) =================
         with g2:
             st.markdown("### 📊 Department Load")
+
             fig2, ax2 = plt.subplots()
-            filtered["department"].value_counts().plot.bar(ax=ax2)
+
+            dep_counts = filtered["department"].value_counts()
+
+            colors = [
+                "red" if d == st.session_state.selected_department else "gray"
+                for d in dep_counts.index
+            ]
+
+            dep_counts.plot.bar(ax=ax2, color=colors)
             st.pyplot(fig2)
 
-        # 📈 HISTOGRAM
+        # ================= HIST =================
         with g3:
             st.markdown("### 📈 Confidence Distribution")
 
-            filtered["confidence"] = pd.to_numeric(filtered["confidence"], errors="coerce")
-
             fig3, ax3 = plt.subplots()
+
             filtered["confidence"].dropna().plot.hist(bins=10, ax=ax3)
+
             st.pyplot(fig3)
 
-        # 🚦 STATUS CHART (REPLACED TIME CHART)
+        # ================= STATUS =================
         with g4:
-            st.markdown("### 🚦 Complaint Status")
+            st.markdown("### 🚦 Status Overview")
 
             fig4, ax4 = plt.subplots()
-            filtered["status"].value_counts().plot.bar(ax=ax4)
+
+            status_counts = filtered["status"].value_counts()
+
+            status_counts.plot.bar(ax=ax4)
+
             st.pyplot(fig4)
 
-        # -------- TABLE --------
-        st.markdown("### 📋 Filtered Data")
+        # -------- DRILL DOWN --------
+        st.markdown("### 📋 Drill-down Data")
+
         st.dataframe(filtered.iloc[::-1], use_container_width=True)
 
+        # -------- RESET BUTTON --------
+        if st.button("🔄 Reset Filters"):
+            st.session_state.selected_category = "All"
+            st.session_state.selected_department = "All"
+            st.rerun()
+
     else:
-        st.warning("No data available yet. Add complaints to see analytics.")
+        st.warning("No data available yet.")
 
 # ================== CHATBOT ==================
 with tabs[3]:
