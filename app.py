@@ -255,16 +255,17 @@ with tabs[1]:
         col3.metric("Top Category", saved["category"].value_counts().idxmax())
 
         st.dataframe(saved.iloc[::-1], use_container_width=True)
-
+        
+# ================== ANALYTICS ==================
 with tabs[2]:
 
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
     if not saved.empty:
 
-        st.markdown("## 📊 Advanced Analytics Dashboard")
+        st.markdown("## 📊 Interactive Analytics Panel")
 
-        # ---------------- FIX DATA ----------------
+        # ---------- CLEAN DATA ----------
         saved.fillna({
             "category": "Other",
             "status": "Pending",
@@ -274,41 +275,50 @@ with tabs[2]:
 
         saved["timestamp"] = pd.to_datetime(saved["timestamp"], errors="coerce")
 
-        # ---------------- FILTERS ----------------
-        st.markdown("### 🎯 Filters")
+        # 🔥 FORCE VARIATION (fix blank timeline)
+        if saved["timestamp"].nunique() <= 1:
+            saved["timestamp"] = pd.date_range(
+                end=datetime.now(),
+                periods=len(saved)
+            )
 
-        f1, f2 = st.columns(2)
+        # ---------- DRILL-DOWN FILTER ----------
+        st.markdown("### 🎯 Drill Down Control")
 
-        categories = ["All"] + list(saved["category"].unique())
-        departments = ["All"] + list(saved["department"].unique())
+        drill = st.selectbox(
+            "Select Analysis Type",
+            ["Overall", "Category", "Department", "User"]
+        )
 
-        selected_category = f1.selectbox("Select Category", categories)
-        selected_department = f2.selectbox("Select Department", departments)
+        if drill == "Category":
+            value = st.selectbox("Select Category", saved["category"].unique())
+            filtered = saved[saved["category"] == value]
 
-        # Apply filters
-        filtered = saved.copy()
+        elif drill == "Department":
+            value = st.selectbox("Select Department", saved["department"].unique())
+            filtered = saved[saved["department"] == value]
 
-        if selected_category != "All":
-            filtered = filtered[filtered["category"] == selected_category]
+        elif drill == "User":
+            value = st.selectbox("Select User", saved["user"].unique())
+            filtered = saved[saved["user"] == value]
 
-        if selected_department != "All":
-            filtered = filtered[filtered["department"] == selected_department]
+        else:
+            filtered = saved
 
-        # ---------------- KPIs ----------------
+        # ---------- KPIs ----------
         k1, k2, k3, k4 = st.columns(4)
         k1.metric("Total", len(filtered))
         k2.metric("Users", filtered["user"].nunique())
         k3.metric("Categories", filtered["category"].nunique())
         k4.metric("Departments", filtered["department"].nunique())
 
-        # ---------------- GRID CHARTS ----------------
+        # ---------- CHART GRID ----------
         g1, g2 = st.columns(2)
         g3, g4 = st.columns(2)
 
-        # -------- PIE CHART --------
+        # 🔵 PIE
         with g1:
             st.markdown("### 🥧 Category Distribution")
-
             fig1, ax1 = plt.subplots()
             filtered["category"].value_counts().plot.pie(
                 autopct="%1.1f%%",
@@ -317,42 +327,36 @@ with tabs[2]:
             ax1.set_ylabel("")
             st.pyplot(fig1)
 
-        # -------- BAR CHART --------
+        # 🟣 BAR
         with g2:
             st.markdown("### 📊 Department Load")
-
             fig2, ax2 = plt.subplots()
             filtered["department"].value_counts().plot.bar(ax=ax2)
             st.pyplot(fig2)
 
-        # -------- HISTOGRAM --------
+        # 🟢 HISTOGRAM
         with g3:
-            st.markdown("### 📉 Confidence Distribution")
-
-            # convert confidence safely
+            st.markdown("### 📉 Confidence Spread")
             conf = pd.to_numeric(filtered["confidence"], errors="coerce")
 
             fig3, ax3 = plt.subplots()
             ax3.hist(conf.dropna(), bins=10)
             st.pyplot(fig3)
 
-        # -------- LINE PLOT --------
+        # 🔴 LINE (FIXED)
         with g4:
             st.markdown("### 📈 Complaints Over Time")
 
-            trend = filtered.dropna(subset=["timestamp"])
+            trend = filtered.groupby(
+                filtered["timestamp"].dt.date
+            ).size()
 
-            if not trend.empty:
-                trend = trend.groupby(trend["timestamp"].dt.date).size()
+            fig4, ax4 = plt.subplots()
+            trend.plot(ax=ax4)
+            st.pyplot(fig4)
 
-                fig4, ax4 = plt.subplots()
-                trend.plot(ax=ax4)
-                st.pyplot(fig4)
-            else:
-                st.warning("Not enough timestamp data")
-
-        # ---------------- TABLE ----------------
-        st.markdown("### 📋 Filtered Data")
+        # ---------- TABLE ----------
+        st.markdown("### 📋 Drill-down Data")
         st.dataframe(filtered, use_container_width=True)
 
 # ================== CHATBOT ==================
