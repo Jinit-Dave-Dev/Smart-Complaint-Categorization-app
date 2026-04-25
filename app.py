@@ -8,7 +8,6 @@ from sklearn.metrics.pairwise import cosine_similarity
 import matplotlib.pyplot as plt
 import re
 from datetime import datetime
-import uuid
 
 st.set_page_config(page_title="Smart Complaint System", layout="wide")
 
@@ -16,7 +15,7 @@ st.set_page_config(page_title="Smart Complaint System", layout="wide")
 st.markdown("""
 <style>
 .stApp {
-    background: linear-gradient(135deg, #0f172a, #1e293b);
+    background: linear-gradient(135deg, #0f172a, #1e293b, #0f172a);
     color: white;
 }
 .stButton button {
@@ -39,16 +38,6 @@ c.execute("""CREATE TABLE IF NOT EXISTS complaints (
     category TEXT,
     confidence TEXT
 )""")
-
-def add_column(col):
-    try:
-        c.execute(f"ALTER TABLE complaints ADD COLUMN {col} TEXT")
-    except:
-        pass
-
-for col in ["id", "status", "department", "timestamp"]:
-    add_column(col)
-
 conn.commit()
 
 # -------------------- SESSION --------------------
@@ -59,30 +48,24 @@ if "user" not in st.session_state:
 
 # -------------------- LOGIN --------------------
 def login():
-    col1, col2 = st.columns([2, 1])
+    st.title("🔐 Login")
 
-    with col1:
-        st.image("https://images.unsplash.com/photo-1581092918056-0c4c3acd3789", use_container_width=True)
+    u = st.text_input("Username")
+    p = st.text_input("Password", type="password")
 
-    with col2:
-        st.markdown("## 🏛️ SMART COMPLAINT CATEGORIZATION GOVERNMENT PORTAL")
+    if st.button("Login"):
+        c.execute("SELECT * FROM users WHERE username=? AND password=?", (u, p))
+        if c.fetchone():
+            st.session_state.logged_in = True
+            st.session_state.user = u
+            st.rerun()
+        else:
+            st.error("Invalid Credentials")
 
-        u = st.text_input("Username")
-        p = st.text_input("Password", type="password")
-
-        if st.button("Login"):
-            c.execute("SELECT * FROM users WHERE username=? AND password=?", (u, p))
-            if c.fetchone():
-                st.session_state.logged_in = True
-                st.session_state.user = u
-                st.rerun()
-            else:
-                st.error("Invalid Credentials")
-
-        if st.button("Register"):
-            c.execute("INSERT INTO users VALUES (?,?)", (u, p))
-            conn.commit()
-            st.success("Registered")
+    if st.button("Register"):
+        c.execute("INSERT INTO users VALUES (?,?)", (u, p))
+        conn.commit()
+        st.success("Registered")
 
 if not st.session_state.logged_in:
     login()
@@ -91,11 +74,6 @@ if not st.session_state.logged_in:
 # -------------------- SIDEBAR --------------------
 st.sidebar.title("📊 Smart Dashboard")
 st.sidebar.write(f"👤 {st.session_state.user}")
-
-is_admin = st.session_state.user == "admin"
-
-if is_admin:
-    st.sidebar.success("🧑‍💼 Admin Mode")
 
 st.sidebar.markdown("### 👨‍💻 Developer")
 st.sidebar.write("Jinit Dave")
@@ -109,48 +87,64 @@ vectorizer = pickle.load(open("tfidf_vectorizer.pkl", "rb"))
 le = pickle.load(open("label_encoder.pkl", "rb"))
 model = pickle.load(open("logistic_regression_model.pkl", "rb"))
 
-# -------------------- HELPERS --------------------
+file_path = "smart_complaints_dataset_250.csv"
+if not os.path.exists(file_path):
+    file_path = "data/smart_complaints_dataset_250.csv"
+
+df = pd.read_csv(file_path)
+df.columns = df.columns.str.strip()
+
+complaint_col = next((c for c in df.columns if "complaint" in c.lower()), None)
+df[complaint_col] = df[complaint_col].astype(str)
+
+# -------------------- CATEGORY --------------------
 def get_category(text):
-    t = re.sub(r'[^a-zA-Z ]', ' ', text.lower())
-    if "road" in t: return "Road"
-    if "water" in t: return "Water"
-    if "garbage" in t: return "Garbage"
-    if "electric" in t: return "Electricity"
+    t = re.sub(r'[^a-zA-Z ]', ' ', str(text).lower())
+
+    if "road" in t or "pothole" in t:
+        return "Road"
+    elif "water" in t or "leak" in t:
+        return "Water"
+    elif "garbage" in t:
+        return "Garbage"
+    elif "electric" in t or "power" in t:
+        return "Electricity"
     return "Other"
 
-def get_department(category):
-    return {
-        "Road": "Public Works",
-        "Water": "Water Supply",
-        "Garbage": "Sanitation",
-        "Electricity": "Electric Dept"
-    }.get(category, "General")
-
-# -------------------- CHATBOT (UPGRADED) --------------------
+# -------------------- SMART CHATBOT --------------------
 def chatbot(msg):
     m = msg.lower()
 
-    if any(x in m for x in ["hi", "hello"]):
-        return "👋 Welcome! Describe your issue and I’ll guide you."
+    # Greeting
+    if any(x in m for x in ["hi", "hello", "hey"]):
+        return "👋 Hello! I'm your Smart Municipal Assistant. Tell me your issue."
 
-    if "road" in m:
-        return "🛣️ Road issue detected. Avoid damaged areas. Municipal team will repair it soon."
+    # Road solution
+    if "road" in m or "pothole" in m:
+        return "🛣️ Road Issue:\n- Complaint registered\n- Inspection team assigned\n- Expected fix: 2-3 days"
 
-    if "water" in m:
-        return "💧 Water leakage issue. Turn off valves if possible and report location."
+    # Water solution
+    if "water" in m or "leak" in m:
+        return "💧 Water Issue:\n- Pipeline team notified\n- Emergency check scheduled\n- Expected fix: 24 hrs"
 
-    if "electric" in m:
-        return "⚡ Stay away from exposed wires. Do not touch. Emergency team will respond."
+    # Electricity solution
+    if "electric" in m or "power" in m:
+        return "⚡ Electricity Issue:\n- Complaint escalated\n- Technician dispatched\n- ETA: 4-6 hrs"
 
-    if "track" in m:
-        return "🔎 Use your Complaint ID in dashboard to track status."
+    # Garbage
+    if "garbage" in m:
+        return "🗑️ Garbage Issue:\n- Cleaning team assigned\n- Area scheduled for pickup"
 
-    return "🤖 Please explain your issue in detail."
+    # Status
+    if "status" in m:
+        return "📊 You can check complaint status in Dashboard tab."
+
+    return "📌 Your issue is noted. Please submit complaint in Complaint tab for tracking."
 
 # -------------------- UI --------------------
 st.title("🏛️ Smart Municipal Complaint System")
 
-tabs = st.tabs(["📝 Complaint", "📊 Dashboard", "📈 Analytics", "🤖 Chatbot", "🔎 Track Complaint"])
+tabs = st.tabs(["📝 Complaint", "📊 Dashboard", "📈 Analytics", "🤖 Chatbot"])
 
 # ================== COMPLAINT ==================
 with tabs[0]:
@@ -164,72 +158,84 @@ with tabs[0]:
         prediction = le.inverse_transform(pred)[0]
 
         category = get_category(text)
-        department = get_department(category)
 
-        conf = round(np.random.uniform(70, 95), 2)
-
-        cid = "CMP-" + str(uuid.uuid4())[:8]
+        try:
+            conf = round(model.predict_proba(X).max() * 100, 2)
+        except:
+            conf = np.random.uniform(60, 80)
 
         c.execute("""
-        INSERT INTO complaints 
-        (user, complaint, prediction, category, confidence, id, status, department, timestamp)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            st.session_state.user,
-            text,
-            prediction,
-            category,
-            str(conf),
-            cid,
-            "Pending",
-            department,
-            str(datetime.now())
-        ))
+            INSERT INTO complaints VALUES (?, ?, ?, ?, ?)
+        """, (st.session_state.user, text, prediction, category, str(conf)))
+
         conn.commit()
 
-        st.success(f"Complaint Registered | ID: {cid}")
+        st.success("Complaint Registered")
+
+    # ✅ NEW: REAL-TIME TABLE (ADDED)
+    st.markdown("### 📋 Your Recent Complaints")
+    user_data = pd.read_sql_query(
+        f"SELECT * FROM complaints WHERE user='{st.session_state.user}'",
+        conn
+    )
+
+    if not user_data.empty:
+        st.dataframe(user_data.iloc[::-1], use_container_width=True)
 
 # ================== DASHBOARD ==================
 with tabs[1]:
 
-    df = pd.read_sql_query("SELECT * FROM complaints", conn)
+    saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
-    if not df.empty:
-        df.fillna("N/A", inplace=True)
+    if not saved.empty:
 
-        st.dataframe(df, use_container_width=True)
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total Complaints", len(saved))
+        col2.metric("Users", saved["user"].nunique())
+        col3.metric("Top Category", saved["category"].value_counts().idxmax())
 
-        if is_admin:
-            st.markdown("### 🛠️ Admin Controls")
+        st.markdown("### 📡 Live Complaint Feed")
 
-            cid = st.text_input("Enter Complaint ID")
-
-            if st.button("Mark Resolved"):
-                c.execute("UPDATE complaints SET status='Resolved' WHERE id=?", (cid,))
-                conn.commit()
-
-            if st.button("Mark In Progress"):
-                c.execute("UPDATE complaints SET status='In Progress' WHERE id=?", (cid,))
-                conn.commit()
+        # ✅ IMPROVED REAL-TIME SORT
+        st.dataframe(saved.iloc[::-1], use_container_width=True)
 
 # ================== ANALYTICS ==================
 with tabs[2]:
 
-    df = pd.read_sql_query("SELECT * FROM complaints", conn)
+    saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
-    if not df.empty:
-        col1, col2 = st.columns(2)
+    if not saved.empty:
 
-        with col1:
-            fig, ax = plt.subplots()
-            df["category"].value_counts().plot.pie(autopct="%1.1f%%", ax=ax)
-            ax.set_ylabel("")
-            st.pyplot(fig)
+        st.markdown("## 📊 Analytics Dashboard")
 
-        with col2:
-            fig, ax = plt.subplots()
-            df["category"].value_counts().plot.bar(ax=ax)
-            st.pyplot(fig)
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Total", len(saved))
+        col2.metric("Categories", saved["category"].nunique())
+        col3.metric("Top", saved["category"].value_counts().idxmax())
+
+        g1, g2 = st.columns(2)
+        g3, g4 = st.columns(2)
+
+        with g1:
+            fig1, ax1 = plt.subplots(figsize=(4,4))
+            saved["category"].value_counts().plot.pie(autopct="%1.1f%%", ax=ax1)
+            ax1.set_ylabel("")
+            st.pyplot(fig1)
+
+        with g2:
+            fig2, ax2 = plt.subplots(figsize=(4,4))
+            saved["category"].value_counts().plot.bar(ax=ax2)
+            st.pyplot(fig2)
+
+        with g3:
+            fig3, ax3 = plt.subplots(figsize=(4,4))
+            saved["user"].value_counts().head(5).plot.bar(ax=ax3)
+            st.pyplot(fig3)
+
+        with g4:
+            fig4, ax4 = plt.subplots(figsize=(4,4))
+            saved.groupby("category").size().cumsum().plot(ax=ax4)
+            st.pyplot(fig4)
 
 # ================== CHATBOT ==================
 with tabs[3]:
@@ -237,9 +243,9 @@ with tabs[3]:
     if "chat" not in st.session_state:
         st.session_state.chat = []
 
-    col1, col2 = st.columns([3, 1])
+    col1, col2 = st.columns([3,1])
 
-    msg = col1.text_input("Ask your issue...")
+    msg = col1.text_input("Ask anything...")
 
     if col2.button("🗑️ Clear Chat"):
         st.session_state.chat = []
@@ -249,16 +255,7 @@ with tabs[3]:
         st.session_state.chat.append(("Assistant", chatbot(msg)))
 
     for r, m in st.session_state.chat:
-        st.markdown(f"**{r}:** {m}")
-
-# ================== TRACK ==================
-with tabs[4]:
-
-    cid = st.text_input("Enter Complaint ID to track")
-
-    if st.button("Track"):
-        result = pd.read_sql_query("SELECT * FROM complaints WHERE id=?", conn, params=(cid,))
-        if not result.empty:
-            st.dataframe(result)
+        if r == "You":
+            st.markdown(f"**🧑 You:** {m}")
         else:
-            st.warning("No complaint found")
+            st.markdown(f"**🤖 Assistant:** {m}")
