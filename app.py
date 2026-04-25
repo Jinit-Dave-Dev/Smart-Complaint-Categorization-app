@@ -261,110 +261,107 @@ with tabs[2]:
 
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
-    if not saved.empty:
+    if saved.empty:
+        st.warning("No data available yet. Add complaints first.")
+        st.stop()
 
-        # -------- FIX DATA --------
-        saved.fillna({
-            "category": "Other",
-            "department": "General",
-            "status": "Pending",
-            "confidence": "0"
-        }, inplace=True)
+    # -------- CLEAN DATA --------
+    saved.fillna({
+        "category": "Other",
+        "department": "General",
+        "status": "Pending",
+        "confidence": "0"
+    }, inplace=True)
 
-        saved["confidence"] = pd.to_numeric(saved["confidence"], errors="coerce")
+    saved["confidence"] = pd.to_numeric(saved["confidence"], errors="coerce")
 
-        st.markdown("## 📊 Smart Analytics Dashboard")
+    st.markdown("## 📊 Smart Analytics Dashboard")
 
-        # -------- FILTERS (REAL INTERACTION) --------
-        col_f1, col_f2 = st.columns(2)
+    # -------- FILTERS --------
+    col1, col2 = st.columns(2)
 
-        with col_f1:
-            category_filter = st.selectbox(
-                "Filter by Category",
-                ["All"] + sorted(saved["category"].unique())
-            )
+    with col1:
+        categories = ["All"] + sorted(saved["category"].dropna().unique().tolist())
+        category_filter = st.selectbox("Filter by Category", categories)
 
-        with col_f2:
-            dept_filter = st.selectbox(
-                "Filter by Department",
-                ["All"] + sorted(saved["department"].unique())
-            )
+    with col2:
+        departments = ["All"] + sorted(saved["department"].dropna().unique().tolist())
+        dept_filter = st.selectbox("Filter by Department", departments)
 
-        # -------- APPLY FILTER --------
-        filtered = saved.copy()
+    # -------- APPLY FILTER --------
+    filtered = saved.copy()
 
-        if category_filter != "All":
-            filtered = filtered[filtered["category"] == category_filter]
+    if category_filter != "All":
+        filtered = filtered[filtered["category"] == category_filter]
 
-        if dept_filter != "All":
-            filtered = filtered[filtered["department"] == dept_filter]
+    if dept_filter != "All":
+        filtered = filtered[filtered["department"] == dept_filter]
 
-        # -------- SAFE KPI --------
-        k1, k2, k3, k4 = st.columns(4)
+    # -------- HANDLE EMPTY FILTER RESULT --------
+    if filtered.empty:
+        st.warning("No data found for selected filters.")
+        st.dataframe(saved.iloc[::-1], use_container_width=True)
+        st.stop()
 
-        total = len(filtered)
+    # -------- KPIs (SAFE) --------
+    k1, k2, k3, k4 = st.columns(4)
 
-        k1.metric("Total Complaints", total)
-        k2.metric("Users", filtered["user"].nunique() if total > 0 else 0)
+    k1.metric("Total Complaints", len(filtered))
+    k2.metric("Users", filtered["user"].nunique())
 
-        k3.metric(
-            "Top Category",
-            filtered["category"].value_counts().idxmax()
-            if total > 0 else "N/A"
+    k3.metric(
+        "Top Category",
+        filtered["category"].mode()[0] if not filtered["category"].mode().empty else "N/A"
+    )
+
+    k4.metric(
+        "Top Department",
+        filtered["department"].mode()[0] if not filtered["department"].mode().empty else "N/A"
+    )
+
+    # -------- GRID --------
+    g1, g2 = st.columns(2)
+    g3, g4 = st.columns(2)
+
+    # 🥧 PIE
+    with g1:
+        st.markdown("### 🥧 Category Distribution")
+
+        fig1, ax1 = plt.subplots(figsize=(4,4))
+        filtered["category"].value_counts().plot.pie(
+            autopct="%1.1f%%",
+            ax=ax1
         )
+        ax1.set_ylabel("")
+        st.pyplot(fig1)
 
-        k4.metric(
-            "Top Department",
-            filtered["department"].value_counts().idxmax()
-            if total > 0 else "N/A"
-        )
+    # 📊 BAR
+    with g2:
+        st.markdown("### 📊 Department Load")
 
-        # -------- GRID --------
-        g1, g2 = st.columns(2)
-        g3, g4 = st.columns(2)
+        fig2, ax2 = plt.subplots(figsize=(4,4))
+        filtered["department"].value_counts().plot.bar(ax=ax2)
+        st.pyplot(fig2)
 
-        # ================= PIE =================
-        with g1:
-            st.markdown("### 🥧 Category Distribution")
+    # 📈 HISTOGRAM
+    with g3:
+        st.markdown("### 📈 Confidence Distribution")
 
-            fig1, ax1 = plt.subplots(figsize=(4,4))
-            filtered["category"].value_counts().plot.pie(
-                autopct="%1.1f%%",
-                ax=ax1
-            )
-            ax1.set_ylabel("")
-            st.pyplot(fig1)
+        fig3, ax3 = plt.subplots(figsize=(4,4))
+        filtered["confidence"].dropna().plot.hist(bins=10, ax=ax3)
+        st.pyplot(fig3)
 
-        # ================= BAR =================
-        with g2:
-            st.markdown("### 📊 Department Load")
+    # 🚦 STATUS
+    with g4:
+        st.markdown("### 🚦 Complaint Status")
 
-            fig2, ax2 = plt.subplots(figsize=(4,4))
-            filtered["department"].value_counts().plot.bar(ax=ax2)
-            st.pyplot(fig2)
+        fig4, ax4 = plt.subplots(figsize=(4,4))
+        filtered["status"].value_counts().plot.bar(ax=ax4)
+        st.pyplot(fig4)
 
-        # ================= HIST =================
-        with g3:
-            st.markdown("### 📈 Confidence Distribution")
-
-            fig3, ax3 = plt.subplots(figsize=(4,4))
-            filtered["confidence"].dropna().plot.hist(bins=10, ax=ax3)
-            st.pyplot(fig3)
-
-        # ================= STATUS =================
-        with g4:
-            st.markdown("### 🚦 Complaint Status")
-
-            fig4, ax4 = plt.subplots(figsize=(4,4))
-            filtered["status"].value_counts().plot.bar(ax=ax4)
-            st.pyplot(fig4)
-
-        # -------- TABLE --------
-        st.markdown("### 📋 Detailed Data")
-        st.dataframe(filtered.iloc[::-1], use_container_width=True)
-
-    else:
-        st.warning("No data available yet. Add complaints to see analytics.")
+    # -------- TABLE --------
+    st.markdown("### 📋 Filtered Data")
+    st.dataframe(filtered.iloc[::-1], use_container_width=True)
 
 # ================== CHATBOT ==================
 with tabs[3]:
