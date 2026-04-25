@@ -31,7 +31,6 @@ st.markdown("""
 conn = sqlite3.connect("complaints.db", check_same_thread=False)
 c = conn.cursor()
 
-# BASE TABLE
 c.execute("""
 CREATE TABLE IF NOT EXISTS complaints (
     user TEXT,
@@ -42,7 +41,6 @@ CREATE TABLE IF NOT EXISTS complaints (
 )
 """)
 
-# 🔥 AUTO MIGRATION
 def add_column(col, typ):
     try:
         c.execute(f"ALTER TABLE complaints ADD COLUMN {col} {typ}")
@@ -63,26 +61,34 @@ if "logged_in" not in st.session_state:
 if "user" not in st.session_state:
     st.session_state.user = ""
 
-# -------------------- LOGIN --------------------
+# -------------------- LOGIN (UPDATED UI) --------------------
 def login():
-    st.title("🔐 SMART COMPLAINT CATEGORIZATION GOVERNMENT PORTAL")
 
-    u = st.text_input("Username")
-    p = st.text_input("Password", type="password")
+    col1, col2 = st.columns([2,1])
 
-    if st.button("Login"):
-        c.execute("SELECT * FROM users WHERE username=? AND password=?", (u, p))
-        if c.fetchone():
-            st.session_state.logged_in = True
-            st.session_state.user = u
-            st.rerun()
-        else:
-            st.error("Invalid Credentials")
+    with col1:
+        if os.path.exists("login_bg.jpg"):
+            st.image("login_bg.jpg", use_container_width=True)
 
-    if st.button("Register"):
-        c.execute("INSERT INTO users VALUES (?,?)", (u, p))
-        conn.commit()
-        st.success("Registered")
+    with col2:
+        st.markdown("## 🔐 SMART COMPLAINT CATEGORIZATION GOVERNMENT PORTAL")
+
+        u = st.text_input("Username")
+        p = st.text_input("Password", type="password")
+
+        if st.button("Login"):
+            c.execute("SELECT * FROM users WHERE username=? AND password=?", (u, p))
+            if c.fetchone():
+                st.session_state.logged_in = True
+                st.session_state.user = u
+                st.rerun()
+            else:
+                st.error("Invalid Credentials")
+
+        if st.button("Register"):
+            c.execute("INSERT INTO users VALUES (?,?)", (u, p))
+            conn.commit()
+            st.success("Registered")
 
 if not st.session_state.logged_in:
     login()
@@ -104,31 +110,15 @@ vectorizer = pickle.load(open("tfidf_vectorizer.pkl", "rb"))
 le = pickle.load(open("label_encoder.pkl", "rb"))
 model = pickle.load(open("logistic_regression_model.pkl", "rb"))
 
-file_path = "smart_complaints_dataset_250.csv"
-if not os.path.exists(file_path):
-    file_path = "data/smart_complaints_dataset_250.csv"
-
-df = pd.read_csv(file_path)
-df.columns = df.columns.str.strip()
-
-complaint_col = next((c for c in df.columns if "complaint" in c.lower()), None)
-df[complaint_col] = df[complaint_col].astype(str)
-
-# -------------------- CATEGORY --------------------
+# -------------------- HELPERS --------------------
 def get_category(text):
     t = re.sub(r'[^a-zA-Z ]', ' ', str(text).lower())
-
-    if "road" in t or "pothole" in t:
-        return "Road"
-    elif "water" in t or "leak" in t:
-        return "Water"
-    elif "garbage" in t:
-        return "Garbage"
-    elif "electric" in t or "power" in t:
-        return "Electricity"
+    if "road" in t: return "Road"
+    if "water" in t: return "Water"
+    if "garbage" in t: return "Garbage"
+    if "electric" in t: return "Electricity"
     return "Other"
 
-# -------------------- DEPARTMENT --------------------
 def get_department(cat):
     return {
         "Road": "Public Works",
@@ -137,23 +127,29 @@ def get_department(cat):
         "Electricity": "Electric Dept"
     }.get(cat, "General")
 
-# -------------------- CHATBOT --------------------
+# -------------------- ADVANCED CHATBOT --------------------
 def chatbot(msg):
     m = msg.lower()
 
-    if any(x in m for x in ["hi", "hello", "hey"]):
-        return "👋 Hello! I'm your Smart Municipal Assistant."
+    if any(x in m for x in ["hi","hello","hey"]):
+        return "👋 Welcome to Smart Municipal System.\nYou can report issues like road, water, electricity, garbage."
 
     if "road" in m:
-        return "🛣️ Road Issue → Fix in 2-3 days"
-    if "water" in m:
-        return "💧 Water Issue → Fix in 24 hrs"
-    if "electric" in m:
-        return "⚡ Electricity → Technician sent"
-    if "garbage" in m:
-        return "🗑️ Cleaning team assigned"
+        return "🛣️ Road Issue:\n• Complaint registered\n• Inspection team assigned\n• Expected resolution: 2-3 days"
 
-    return "📌 Please submit complaint for tracking."
+    if "water" in m:
+        return "💧 Water Issue:\n• Pipeline team alerted\n• Emergency fix scheduled\n• ETA: 24 hours"
+
+    if "electric" in m:
+        return "⚡ Electricity Issue:\n• Technician dispatched\n• Expected fix: 4-6 hours"
+
+    if "garbage" in m:
+        return "🗑️ Garbage Issue:\n• Cleaning team scheduled\n• Pickup within 12 hours"
+
+    if "status" in m:
+        return "📊 Track your complaint using Tracking ID in Track Complaint tab."
+
+    return "📌 Please submit your complaint in Complaint tab for full tracking."
 
 # -------------------- UI --------------------
 st.title("🏛️ Smart Municipal Complaint System")
@@ -163,7 +159,8 @@ tabs = st.tabs([
     "📊 Dashboard", 
     "📈 Analytics", 
     "🤖 Chatbot",
-    "🔍 Track Complaint"  # 🔥 NEW TAB
+    "🔍 Track Complaint",
+    "🛠️ Admin Panel"  # NEW
 ])
 
 # ================== COMPLAINT ==================
@@ -180,11 +177,7 @@ with tabs[0]:
         category = get_category(text)
         department = get_department(category)
 
-        try:
-            conf = round(model.predict_proba(X).max() * 100, 2)
-        except:
-            conf = np.random.uniform(60, 80)
-
+        conf = round(model.predict_proba(X).max() * 100, 2)
         tracking_id = str(uuid.uuid4())[:8]
 
         c.execute("""
@@ -205,20 +198,11 @@ with tabs[0]:
         ))
 
         conn.commit()
-
         st.success(f"Complaint Registered | ID: {tracking_id}")
 
-    # REAL-TIME USER TABLE
-    st.markdown("### 📋 Your Complaints")
-    user_data = pd.read_sql_query(
-        "SELECT * FROM complaints WHERE user=?",
-        conn,
-        params=(st.session_state.user,)
-    )
-
-    if not user_data.empty:
-        user_data.fillna("N/A", inplace=True)
-        st.dataframe(user_data.iloc[::-1], use_container_width=True)
+    data = pd.read_sql_query("SELECT * FROM complaints WHERE user=?", conn, params=(st.session_state.user,))
+    if not data.empty:
+        st.dataframe(data.iloc[::-1], use_container_width=True)
 
 # ================== DASHBOARD ==================
 with tabs[1]:
@@ -226,7 +210,6 @@ with tabs[1]:
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
     if not saved.empty:
-
         saved.fillna("N/A", inplace=True)
 
         col1, col2, col3 = st.columns(3)
@@ -234,7 +217,6 @@ with tabs[1]:
         col2.metric("Users", saved["user"].nunique())
         col3.metric("Top Category", saved["category"].value_counts().idxmax())
 
-        st.markdown("### 📡 Live Complaint Feed")
         st.dataframe(saved.iloc[::-1], use_container_width=True)
 
 # ================== ANALYTICS ==================
@@ -243,8 +225,6 @@ with tabs[2]:
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
     if not saved.empty:
-
-        saved["timestamp"] = pd.to_datetime(saved["timestamp"], errors='coerce')
 
         g1, g2 = st.columns(2)
         g3, g4 = st.columns(2)
@@ -266,6 +246,7 @@ with tabs[2]:
             st.pyplot(fig)
 
         with g4:
+            saved["timestamp"] = pd.to_datetime(saved["timestamp"], errors='coerce')
             fig, ax = plt.subplots()
             saved.groupby(saved["timestamp"].dt.date).size().plot(ax=ax)
             st.pyplot(fig)
@@ -290,23 +271,34 @@ with tabs[3]:
     for r, m in st.session_state.chat:
         st.write(f"**{r}:** {m}")
 
-# ================== TRACK COMPLAINT ==================
+# ================== TRACK ==================
 with tabs[4]:
-
-    st.subheader("🔍 Track Your Complaint")
 
     search_id = st.text_input("Enter Tracking ID")
 
     if st.button("Search"):
-        result = pd.read_sql_query(
-            "SELECT * FROM complaints WHERE id=?",
-            conn,
-            params=(search_id,)
-        )
-
+        result = pd.read_sql_query("SELECT * FROM complaints WHERE id=?", conn, params=(search_id,))
         if not result.empty:
-            result.fillna("N/A", inplace=True)
-            st.success("Complaint Found")
             st.dataframe(result, use_container_width=True)
         else:
-            st.error("No complaint found with this ID")
+            st.error("Not Found")
+
+# ================== ADMIN PANEL ==================
+with tabs[5]:
+
+    st.subheader("🛠️ Admin Panel - Update Status")
+
+    data = pd.read_sql_query("SELECT * FROM complaints", conn)
+
+    if not data.empty:
+
+        selected_id = st.selectbox("Select Complaint ID", data["id"].dropna().unique())
+
+        new_status = st.selectbox("Update Status", ["Pending", "In Progress", "Resolved"])
+
+        if st.button("Update Status"):
+            c.execute("UPDATE complaints SET status=? WHERE id=?", (new_status, selected_id))
+            conn.commit()
+            st.success("Status Updated")
+
+        st.dataframe(data, use_container_width=True)
