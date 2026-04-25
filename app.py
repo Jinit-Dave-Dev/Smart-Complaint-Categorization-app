@@ -31,20 +31,28 @@ st.markdown("""
 conn = sqlite3.connect("complaints.db", check_same_thread=False)
 c = conn.cursor()
 
-# 🔥 FIXED SCHEMA (adds missing cols safely)
+# CREATE BASE TABLE (OLD STRUCTURE SAFE)
 c.execute("""
 CREATE TABLE IF NOT EXISTS complaints (
-    id TEXT,
     user TEXT,
     complaint TEXT,
     prediction TEXT,
     category TEXT,
-    confidence TEXT,
-    status TEXT,
-    department TEXT,
-    timestamp TEXT
+    confidence TEXT
 )
 """)
+
+# 🔥 AUTO MIGRATION (ADD NEW COLUMNS IF MISSING)
+def add_column(col_name, col_type):
+    try:
+        c.execute(f"ALTER TABLE complaints ADD COLUMN {col_name} {col_type}")
+    except:
+        pass
+
+add_column("id", "TEXT")
+add_column("status", "TEXT")
+add_column("department", "TEXT")
+add_column("timestamp", "TEXT")
 
 c.execute("CREATE TABLE IF NOT EXISTS users (username TEXT, password TEXT)")
 conn.commit()
@@ -105,17 +113,15 @@ df.columns = df.columns.str.strip()
 
 complaint_col = next((c for c in df.columns if "complaint" in c.lower()), None)
 
-# -------------------- CATEGORY --------------------
+# -------------------- HELPERS --------------------
 def get_category(text):
     t = re.sub(r'[^a-zA-Z ]', ' ', str(text).lower())
-
     if "road" in t: return "Road"
     if "water" in t: return "Water"
     if "garbage" in t: return "Garbage"
     if "electric" in t: return "Electricity"
     return "Other"
 
-# -------------------- DEPARTMENT --------------------
 def get_department(category):
     return {
         "Road": "Public Works",
@@ -124,26 +130,15 @@ def get_department(category):
         "Electricity": "Electric Dept"
     }.get(category, "General")
 
-# -------------------- CHATBOT --------------------
 def chatbot(msg):
     m = msg.lower()
-
-    if any(x in m for x in ["hi","hello","hey"]):
-        return "👋 Hello! How can I assist you today?"
-
+    if any(x in m for x in ["hi","hello"]):
+        return "👋 Hello! How can I assist you?"
     if "road" in m:
-        return "🛣️ Road issue → Please contact Public Works or track in dashboard."
-
+        return "🛣️ Road issue → handled by Public Works."
     if "water" in m:
-        return "💧 Water issue → Pipeline team will handle this."
-
-    if "status" in m:
-        return "📊 You can track your complaint using Tracking ID."
-
-    if "help" in m:
-        return "🤖 I can help you register, track complaints and give suggestions."
-
-    return "📌 Complaint noted. Our system will process it."
+        return "💧 Water issue → pipeline team assigned."
+    return "📌 Complaint noted."
 
 # -------------------- UI --------------------
 st.title("🏛️ Smart Municipal Complaint System")
@@ -163,13 +158,16 @@ with tabs[0]:
 
         category = get_category(text)
         department = get_department(category)
-
         conf = round(model.predict_proba(X).max() * 100, 2)
 
         tracking_id = str(uuid.uuid4())[:8]
 
+        # 🔥 FIXED INSERT (SPECIFY COLUMNS)
         c.execute("""
-        INSERT INTO complaints VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO complaints (
+            id, user, complaint, prediction, category, confidence,
+            status, department, timestamp
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             tracking_id,
             st.session_state.user,
@@ -184,9 +182,8 @@ with tabs[0]:
 
         conn.commit()
 
-        st.success(f"Complaint Registered | Tracking ID: {tracking_id}")
+        st.success(f"Complaint Registered | ID: {tracking_id}")
 
-    # 🔥 REAL-TIME TABLE
     st.markdown("### 📡 Your Complaints")
     data = pd.read_sql_query("SELECT * FROM complaints WHERE user=?", conn, params=(st.session_state.user,))
     st.dataframe(data, use_container_width=True)
@@ -198,18 +195,14 @@ with tabs[1]:
 
     if not saved.empty:
 
+        saved.fillna("N/A", inplace=True)
+
         col1, col2, col3 = st.columns(3)
         col1.metric("Total", len(saved))
         col2.metric("Users", saved["user"].nunique())
         col3.metric("Top Category", saved["category"].value_counts().idxmax())
 
-        st.markdown("### 📋 Live Feed")
-
-        # 🔥 NO EMPTY VALUES NOW
-        saved["status"] = saved["status"].fillna("Pending")
-        saved["department"] = saved["department"].fillna("General")
-
-        st.dataframe(saved.sort_values("timestamp", ascending=False), use_container_width=True)
+        st.dataframe(saved, use_container_width=True)
 
 # ================== ANALYTICS ==================
 with tabs[2]:
@@ -218,7 +211,7 @@ with tabs[2]:
 
     if not saved.empty:
 
-        saved["time"] = pd.to_datetime(saved["timestamp"])
+        saved["timestamp"] = pd.to_datetime(saved["timestamp"], errors='coerce')
 
         g1, g2 = st.columns(2)
         g3, g4 = st.columns(2)
@@ -241,7 +234,7 @@ with tabs[2]:
 
         with g4:
             fig, ax = plt.subplots()
-            saved.groupby(saved["time"].dt.date).size().plot(ax=ax)
+            saved.groupby(saved["timestamp"].dt.date).size().plot(ax=ax)
             st.pyplot(fig)
 
 # ================== CHATBOT ==================
@@ -254,7 +247,7 @@ with tabs[3]:
 
     msg = col1.text_input("Ask anything...")
 
-    if col2.button("🗑️ Delete History"):
+    if col2.button("🗑️ Clear Chat"):
         st.session_state.chat = []
 
     if msg:
