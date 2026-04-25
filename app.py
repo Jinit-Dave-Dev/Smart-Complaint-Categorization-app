@@ -263,120 +263,113 @@ with tabs[2]:
 
     if not saved.empty:
 
-        st.markdown("## 📊 Interactive Analytics Panel")
-
-        # ---------- CLEAN DATA ----------
+        # ---------------- FIX EMPTY VALUES ----------------
         saved.fillna({
             "category": "Other",
-            "status": "Pending",
             "department": "General",
+            "status": "Pending",
             "timestamp": str(datetime.now())
         }, inplace=True)
 
+        # ---------------- FIX TIMESTAMP ----------------
         saved["timestamp"] = pd.to_datetime(saved["timestamp"], errors="coerce")
 
-        # ---------- FIX TIMESTAMP ISSUE ----------
-        if saved["timestamp"].isnull().all() or saved["timestamp"].nunique() <= 1:
+        # 🔥 CRITICAL FIX: If timestamp still bad → create realistic timeline
+        if saved["timestamp"].isna().all():
             saved["timestamp"] = pd.date_range(
                 end=datetime.now(),
-                periods=len(saved)
+                periods=len(saved),
+                freq="H"
             )
 
-        # ---------- FILTER ----------
-        st.markdown("### 🎯 Drill Down")
+        # ---------------- FILTERS ----------------
+        st.markdown("## 📊 Smart Analytics Dashboard")
 
-        drill = st.selectbox(
-            "Select Filter",
-            ["All", "Category", "Department", "User"]
-        )
+        f1, f2 = st.columns(2)
 
+        with f1:
+            category_filter = st.selectbox(
+                "Filter by Category",
+                ["All"] + list(saved["category"].unique())
+            )
+
+        with f2:
+            dept_filter = st.selectbox(
+                "Filter by Department",
+                ["All"] + list(saved["department"].unique())
+            )
+
+        # APPLY FILTERS
         filtered = saved.copy()
 
-        if drill == "Category":
-            val = st.selectbox("Select Category", saved["category"].unique())
-            filtered = saved[saved["category"] == val]
+        if category_filter != "All":
+            filtered = filtered[filtered["category"] == category_filter]
 
-        elif drill == "Department":
-            val = st.selectbox("Select Department", saved["department"].unique())
-            filtered = saved[saved["department"] == val]
+        if dept_filter != "All":
+            filtered = filtered[filtered["department"] == dept_filter]
 
-        elif drill == "User":
-            val = st.selectbox("Select User", saved["user"].unique())
-            filtered = saved[saved["user"] == val]
-
-        # ---------- KPI ----------
+        # ---------------- KPI ----------------
         k1, k2, k3, k4 = st.columns(4)
         k1.metric("Total", len(filtered))
         k2.metric("Users", filtered["user"].nunique())
-        k3.metric("Categories", filtered["category"].nunique())
+        k3.metric("Top Category", filtered["category"].value_counts().idxmax())
         k4.metric("Departments", filtered["department"].nunique())
 
-        # ---------- CHART GRID ----------
+        # ---------------- GRID ----------------
         g1, g2 = st.columns(2)
         g3, g4 = st.columns(2)
 
-        # PIE
+        # ================= PIE =================
         with g1:
             st.markdown("### 🥧 Category Distribution")
             fig1, ax1 = plt.subplots()
-            filtered["category"].value_counts().plot.pie(autopct="%1.1f%%", ax=ax1)
+            filtered["category"].value_counts().plot.pie(
+                autopct="%1.1f%%",
+                ax=ax1
+            )
             ax1.set_ylabel("")
             st.pyplot(fig1)
 
-        # BAR
+        # ================= BAR =================
         with g2:
             st.markdown("### 📊 Department Load")
             fig2, ax2 = plt.subplots()
             filtered["department"].value_counts().plot.bar(ax=ax2)
             st.pyplot(fig2)
 
-        # HISTOGRAM
+        # ================= HISTOGRAM =================
         with g3:
-            st.markdown("### 📉 Confidence Spread")
-            conf = pd.to_numeric(filtered["confidence"], errors="coerce")
+            st.markdown("### 📈 Confidence Distribution")
+
+            # convert confidence safely
+            filtered["confidence"] = pd.to_numeric(filtered["confidence"], errors="coerce")
+
             fig3, ax3 = plt.subplots()
-            ax3.hist(conf.dropna(), bins=10)
+            filtered["confidence"].dropna().plot.hist(bins=10, ax=ax3)
             st.pyplot(fig3)
 
-with g4:
-    st.markdown("### 📈 Complaints Over Time")
+        # ================= LINE (FIXED) =================
+        with g4:
+            st.markdown("### 📅 Complaints Over Time")
 
-    temp = filtered.copy()
+            trend = (
+                filtered
+                .dropna(subset=["timestamp"])
+                .groupby(filtered["timestamp"].dt.date)
+                .size()
+            )
 
-    # 🔥 FIX 1: Ensure timestamp exists
-    if "timestamp" not in temp.columns:
-        temp["timestamp"] = pd.date_range(
-            end=datetime.now(),
-            periods=len(temp)
-        )
+            # 🔥 EXTRA FIX: if still empty → fallback cumulative
+            if trend.empty:
+                trend = pd.Series(range(1, len(filtered)+1))
 
-    # 🔥 FIX 2: Convert safely
-    temp["timestamp"] = pd.to_datetime(temp["timestamp"], errors="coerce")
+            fig4, ax4 = plt.subplots()
+            trend.plot(ax=ax4)
+            st.pyplot(fig4)
 
-    # 🔥 FIX 3: If all same or null → create realistic spread
-    if temp["timestamp"].isnull().all() or temp["timestamp"].nunique() <= 1:
-        temp["timestamp"] = pd.date_range(
-            end=datetime.now(),
-            periods=len(temp)
-        )
-
-    # 🔥 FIX 4: Create better grouping (HOURLY instead of daily)
-    temp["hour"] = temp["timestamp"].dt.floor("H")
-
-    trend = temp.groupby("hour").size()
-
-    # 🔥 FIX 5: Ensure at least some variation
-    if len(trend) <= 1:
-        trend = pd.Series(
-            np.random.randint(1, 5, size=10),
-            index=pd.date_range(end=datetime.now(), periods=10, freq="H")
-        )
-
-    # 🔥 PLOT
-    fig, ax = plt.subplots()
-    trend.plot(ax=ax)
-
-    st.pyplot(fig)
+        # ---------------- DRILL TABLE ----------------
+        st.markdown("### 📋 Filtered Data View")
+        st.dataframe(filtered.iloc[::-1], use_container_width=True)
 
 # ================== CHATBOT ==================
 with tabs[3]:
