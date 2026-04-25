@@ -24,6 +24,12 @@ st.markdown("""
     color: white;
     border-radius: 10px;
 }
+.login-box {
+    background: white;
+    padding: 30px;
+    border-radius: 12px;
+    color: black;
+}
 </style>
 """, unsafe_allow_html=True)
 
@@ -31,44 +37,23 @@ st.markdown("""
 conn = sqlite3.connect("complaints.db", check_same_thread=False)
 c = conn.cursor()
 
-# OLD TABLE (unchanged)
 c.execute("CREATE TABLE IF NOT EXISTS users (username TEXT, password TEXT)")
-c.execute("""CREATE TABLE IF NOT EXISTS complaints (
+
+# ✅ Added columns without removing old ones
+c.execute("""
+CREATE TABLE IF NOT EXISTS complaints (
+    id TEXT,
     user TEXT,
     complaint TEXT,
     prediction TEXT,
     category TEXT,
-    confidence TEXT
-)""")
-
-# 🔥 ADD NEW COLUMNS SAFELY (NO BREAK)
-def safe_add_column(col, col_type):
-    try:
-        c.execute(f"ALTER TABLE complaints ADD COLUMN {col} {col_type}")
-    except:
-        pass
-
-safe_add_column("id", "TEXT")
-safe_add_column("status", "TEXT")
-safe_add_column("department", "TEXT")
-safe_add_column("timestamp", "TEXT")
-
+    confidence TEXT,
+    status TEXT,
+    department TEXT,
+    timestamp TEXT
+)
+""")
 conn.commit()
-
-# -------------------- HELPERS --------------------
-def generate_id():
-    return "CMP-" + str(uuid.uuid4())[:8].upper()
-
-def get_department(category):
-    return {
-        "Road": "Public Works",
-        "Water": "Water Supply",
-        "Garbage": "Sanitation",
-        "Electricity": "Electric Dept"
-    }.get(category, "General")
-
-def get_status():
-    return "NEW"
 
 # -------------------- SESSION --------------------
 if "logged_in" not in st.session_state:
@@ -76,26 +61,32 @@ if "logged_in" not in st.session_state:
 if "user" not in st.session_state:
     st.session_state.user = ""
 
-# -------------------- LOGIN --------------------
+# -------------------- LOGIN PAGE (UPDATED UI) --------------------
 def login():
-    st.title("🔐 Login")
+    col1, col2 = st.columns([2, 1])
 
-    u = st.text_input("Username")
-    p = st.text_input("Password", type="password")
+    with col1:
+        st.image("https://images.unsplash.com/photo-1590650046871-92c887180603", use_container_width=True)
 
-    if st.button("Login"):
-        c.execute("SELECT * FROM users WHERE username=? AND password=?", (u, p))
-        if c.fetchone():
-            st.session_state.logged_in = True
-            st.session_state.user = u
-            st.rerun()
-        else:
-            st.error("Invalid Credentials")
+    with col2:
+        st.markdown("### 🏛️ SMART COMPLAINT CATEGORIZATION GOVERNMENT PORTAL")
 
-    if st.button("Register"):
-        c.execute("INSERT INTO users VALUES (?,?)", (u, p))
-        conn.commit()
-        st.success("Registered")
+        u = st.text_input("Username")
+        p = st.text_input("Password", type="password")
+
+        if st.button("Login"):
+            c.execute("SELECT * FROM users WHERE username=? AND password=?", (u, p))
+            if c.fetchone():
+                st.session_state.logged_in = True
+                st.session_state.user = u
+                st.rerun()
+            else:
+                st.error("Invalid Credentials")
+
+        if st.button("Register"):
+            c.execute("INSERT INTO users VALUES (?,?)", (u, p))
+            conn.commit()
+            st.success("Registered")
 
 if not st.session_state.logged_in:
     login()
@@ -137,23 +128,36 @@ def get_category(text):
     if "electric" in t: return "Electricity"
     return "Other"
 
-# -------------------- CHATBOT --------------------
+# -------------------- DEPARTMENT --------------------
+def get_department(category):
+    mapping = {
+        "Road": "Public Works",
+        "Water": "Water Supply",
+        "Garbage": "Sanitation",
+        "Electricity": "Electric Dept"
+    }
+    return mapping.get(category, "General")
+
+# -------------------- CHATBOT (FIXED REAL BOT) --------------------
 def chatbot(msg):
     m = msg.lower()
 
-    if any(x in m for x in ["hi", "hello"]):
-        return "👋 Hello! Tell me your issue."
+    if any(x in m for x in ["hi", "hello", "hey"]):
+        return "👋 Hello! How can I help you today?"
 
     if "road" in m:
-        return "🛣️ Road repair team will fix it in 2-3 days."
+        return "🛣️ Please avoid damaged areas. Complaint will be forwarded to road department."
 
     if "water" in m:
-        return "💧 Water team will resolve within 24 hrs."
+        return "💧 Check if it's local or area-wide. If major, we’ll escalate immediately."
 
     if "electric" in m:
-        return "⚡ Electricity issue will be fixed in 4-6 hrs."
+        return "⚡ Please stay safe. Avoid contact with wires. Team will resolve soon."
 
-    return "📌 Please submit complaint for tracking."
+    if "status" in m:
+        return "📊 You can track complaint status in Dashboard tab."
+
+    return "🤖 Please describe your issue clearly. I will assist you."
 
 # -------------------- UI --------------------
 st.title("🏛️ Smart Municipal Complaint System")
@@ -172,34 +176,37 @@ with tabs[0]:
         prediction = le.inverse_transform(pred)[0]
 
         category = get_category(text)
+        department = get_department(category)
 
-        conf = np.random.uniform(60, 90)
+        try:
+            conf = round(model.predict_proba(X).max() * 100, 2)
+        except:
+            conf = np.random.uniform(60, 80)
 
-        cid = generate_id()
-        dept = get_department(category)
-        status = get_status()
-        time_now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        complaint_id = "CMP-" + str(uuid.uuid4())[:8]
 
-        # 🔥 INSERT WITH NEW FIELDS
         c.execute("""
-        INSERT INTO complaints 
-        (user, complaint, prediction, category, confidence, id, status, department, timestamp)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (st.session_state.user, text, prediction, category, str(conf),
-              cid, status, dept, time_now))
-
+        INSERT INTO complaints VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """, (
+            complaint_id,
+            st.session_state.user,
+            text,
+            prediction,
+            category,
+            str(conf),
+            "🟡 In Progress",
+            department,
+            str(datetime.now())
+        ))
         conn.commit()
 
-        st.success(f"Complaint Registered | ID: {cid}")
+        st.success(f"Complaint Registered | ID: {complaint_id}")
 
-    # 🔥 USER VIEW ONLY
-    user_df = pd.read_sql_query(
-        f"SELECT id, complaint, category, status, department, timestamp FROM complaints WHERE user='{st.session_state.user}'",
-        conn
-    )
-
-    if not user_df.empty:
-        st.dataframe(user_df.iloc[::-1], use_container_width=True)
+        # ✅ SHOW ONLY NEW ENTRY (not full table)
+        latest = pd.read_sql_query(
+            "SELECT * FROM complaints ORDER BY timestamp DESC LIMIT 1", conn
+        )
+        st.dataframe(latest, use_container_width=True)
 
 # ================== DASHBOARD ==================
 with tabs[1]:
@@ -208,19 +215,17 @@ with tabs[1]:
 
     if not saved.empty:
 
-        st.markdown("### 🔍 Filter by Status")
-        status_filter = st.selectbox("Select Status", ["All", "NEW", "IN PROGRESS", "RESOLVED"])
-
-        if status_filter != "All":
-            saved = saved[saved["status"] == status_filter]
-
         col1, col2, col3 = st.columns(3)
         col1.metric("Total", len(saved))
         col2.metric("Departments", saved["department"].nunique())
         col3.metric("Top Category", saved["category"].value_counts().idxmax())
 
-        st.markdown("### 📡 Admin Complaint View")
-        st.dataframe(saved.iloc[::-1], use_container_width=True)
+        st.markdown("### 📋 Complaint Monitoring Table")
+
+        st.dataframe(
+            saved.sort_values("timestamp", ascending=False),
+            use_container_width=True
+        )
 
 # ================== ANALYTICS ==================
 with tabs[2]:
@@ -229,29 +234,38 @@ with tabs[2]:
 
     if not saved.empty:
 
+        st.markdown("## 📊 Analytics Dashboard")
+
         g1, g2 = st.columns(2)
         g3, g4 = st.columns(2)
 
+        saved["timestamp"] = pd.to_datetime(saved["timestamp"], errors='coerce')
+
+        # PIE
         with g1:
-            fig, ax = plt.subplots()
-            saved["category"].value_counts().plot.pie(ax=ax, autopct="%1.1f%%")
-            ax.set_ylabel("")
-            st.pyplot(fig)
+            fig1, ax1 = plt.subplots()
+            saved["category"].value_counts().plot.pie(autopct="%1.1f%%", ax=ax1)
+            ax1.set_ylabel("")
+            st.pyplot(fig1)
 
+        # BAR
         with g2:
-            fig, ax = plt.subplots()
-            saved["department"].value_counts().plot.bar(ax=ax)
-            st.pyplot(fig)
+            fig2, ax2 = plt.subplots()
+            saved["category"].value_counts().plot.bar(ax=ax2)
+            st.pyplot(fig2)
 
+        # USER
         with g3:
-            fig, ax = plt.subplots()
-            saved["status"].value_counts().plot.bar(ax=ax)
-            st.pyplot(fig)
+            fig3, ax3 = plt.subplots()
+            saved["user"].value_counts().plot.bar(ax=ax3)
+            st.pyplot(fig3)
 
+        # TIME TREND
         with g4:
-            fig, ax = plt.subplots()
-            saved.groupby("category").size().cumsum().plot(ax=ax)
-            st.pyplot(fig)
+            trend = saved.groupby(saved["timestamp"].dt.date).size()
+            fig4, ax4 = plt.subplots()
+            trend.plot(ax=ax4)
+            st.pyplot(fig4)
 
 # ================== CHATBOT ==================
 with tabs[3]:
@@ -259,11 +273,19 @@ with tabs[3]:
     if "chat" not in st.session_state:
         st.session_state.chat = []
 
-    msg = st.text_input("Ask anything...")
+    col1, col2 = st.columns([3, 1])
+
+    msg = col1.text_input("Ask your problem...")
+
+    if col2.button("🗑️ Clear Chat"):
+        st.session_state.chat = []
 
     if msg:
         st.session_state.chat.append(("You", msg))
-        st.session_state.chat.append(("Bot", chatbot(msg)))
+        st.session_state.chat.append(("Assistant", chatbot(msg)))
 
     for r, m in st.session_state.chat:
-        st.markdown(f"**{r}:** {m}")
+        if r == "You":
+            st.markdown(f"**🧑 You:** {m}")
+        else:
+            st.markdown(f"**🤖 Assistant:** {m}")
