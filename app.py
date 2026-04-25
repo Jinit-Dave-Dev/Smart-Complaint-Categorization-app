@@ -342,18 +342,7 @@ with tabs[2]:
             fig3, ax3 = plt.subplots()
             ax3.hist(conf.dropna(), bins=10)
             st.pyplot(fig3)
-
-        # # 🔴 LINE (FIXED)
-        # with g4:
-        #     st.markdown("### 📈 Complaints Over Time")
-
-        #     trend = filtered.groupby(
-        #         filtered["timestamp"].dt.date
-        #     ).size()
-
-        #     fig4, ax4 = plt.subplots()
-        #     trend.plot(ax=ax4)
-        #     st.pyplot(fig4)
+            
 with g4:
     st.markdown("### 📈 Complaints Over Time")
 
