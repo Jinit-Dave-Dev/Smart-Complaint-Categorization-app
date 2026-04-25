@@ -111,7 +111,7 @@ def get_category(text):
         return "Electricity"
     return "Other"
 
-# -------------------- CHATBOT (PROFESSIONAL IMPROVED) --------------------
+# -------------------- CHATBOT --------------------
 def chatbot(msg):
     m = msg.lower()
 
@@ -180,7 +180,7 @@ with tabs[0]:
 
         st.dataframe(df.iloc[idx], use_container_width=True)
 
-# ================== DASHBOARD (IMPROVED TABLE VIEW) ==================
+# ================== DASHBOARD ==================
 with tabs[1]:
 
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
@@ -188,8 +188,6 @@ with tabs[1]:
     if not saved.empty:
 
         saved["timestamp"] = pd.date_range(end=datetime.now(), periods=len(saved))
-
-        # NEW vs OLD split (REAL-TIME FEEL)
         saved["type"] = np.where(saved.index >= len(saved)-5, "🆕 New", "📁 Old")
 
         col1, col2, col3 = st.columns(3)
@@ -200,7 +198,7 @@ with tabs[1]:
         st.markdown("### 📋 Live Complaint Feed")
         st.dataframe(saved.sort_values("timestamp", ascending=False), use_container_width=True)
 
-# ================== ANALYTICS (MORE CHARTS + BETTER SIZE) ==================
+# ================== ANALYTICS (FIXED GRID CHARTS) ==================
 with tabs[2]:
 
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
@@ -214,26 +212,36 @@ with tabs[2]:
         col2.metric("Categories", saved["category"].nunique())
         col3.metric("Top", saved["category"].value_counts().idxmax())
 
-        # PIE CHART (LARGER)
-        st.markdown("### 🥧 Category Distribution")
-        fig1, ax1 = plt.subplots(figsize=(6, 6))
-        saved["category"].value_counts().plot.pie(autopct="%1.1f%%", ax=ax1)
-        ax1.set_ylabel("")
-        st.pyplot(fig1)
+        # 🔥 GRID START
+        g1, g2 = st.columns(2)
+        g3, g4 = st.columns(2)
 
-        # BAR CHART (LARGER)
-        st.markdown("### 📊 Category Volume")
-        fig2, ax2 = plt.subplots(figsize=(8, 4))
-        saved["category"].value_counts().plot.bar(ax=ax2)
-        st.pyplot(fig2)
+        # Chart 1: Pie
+        with g1:
+            fig1, ax1 = plt.subplots(figsize=(4, 4))
+            saved["category"].value_counts().plot.pie(autopct="%1.1f%%", ax=ax1)
+            ax1.set_ylabel("")
+            st.pyplot(fig1)
 
-        # LINE TREND (NEW CHART)
-        st.markdown("### 📈 Complaint Trend")
-        fig3, ax3 = plt.subplots(figsize=(8, 4))
-        saved["category"].value_counts().cumsum().plot(ax=ax3)
-        st.pyplot(fig3)
+        # Chart 2: Bar
+        with g2:
+            fig2, ax2 = plt.subplots(figsize=(5, 4))
+            saved["category"].value_counts().plot.bar(ax=ax2)
+            st.pyplot(fig2)
 
-# ================== CHATBOT (PROFESSIONAL UPGRADE) ==================
+        # Chart 3: Line Trend
+        with g3:
+            fig3, ax3 = plt.subplots(figsize=(5, 4))
+            saved["category"].value_counts().cumsum().plot(ax=ax3)
+            st.pyplot(fig3)
+
+        # Chart 4: Top Users
+        with g4:
+            fig4, ax4 = plt.subplots(figsize=(5, 4))
+            saved["user"].value_counts().head(5).plot.bar(ax=ax4)
+            st.pyplot(fig4)
+
+# ================== CHATBOT ==================
 with tabs[3]:
 
     if "chat" not in st.session_state:
