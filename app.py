@@ -15,16 +15,9 @@ st.set_page_config(page_title="Smart Complaint System", layout="wide")
 st.markdown("""
 <style>
 
-/* Full page reset */
-html, body, [data-testid="stAppViewContainer"] {
-    height: 100%;
-    margin: 0;
-    padding: 0;
-}
-
-/* Background image (government style) */
+/* ===== BACKGROUND ===== */
 [data-testid="stAppViewContainer"] {
-    background: url("https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b") no-repeat center center fixed;
+    background: url("https://images.unsplash.com/photo-1581090700227-1e8a6f0a6f5f") no-repeat center center fixed;
     background-size: cover;
 }
 
@@ -33,58 +26,75 @@ html, body, [data-testid="stAppViewContainer"] {
     content: "";
     position: fixed;
     inset: 0;
-    background: rgba(10, 35, 70, 0.7);
-    z-index: 0;
+    background: rgba(10, 35, 70, 0.75);
 }
 
-/* Remove Streamlit spacing */
-.block-container {
-    padding-top: 2rem;
-}
-
-/* Center login card */
-.center-card {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-}
-
-/* Card */
-.card {
-    background: rgba(255,255,255,0.95);
+/* ===== CENTER CARD ===== */
+.login-card {
+    background: rgba(255,255,255,0.08);
+    backdrop-filter: blur(20px);
     padding: 40px;
-    border-radius: 16px;
-    width: 400px;
-    box-shadow: 0px 10px 40px rgba(0,0,0,0.4);
+    border-radius: 18px;
+    width: 420px;
+    margin: auto;
+    margin-top: 8vh;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.4);
     animation: fadeIn 0.6s ease;
 }
 
-/* Animation */
-@keyframes fadeIn {
-    from {opacity: 0; transform: translateY(20px);}
-    to {opacity: 1; transform: translateY(0);}
-}
-
-/* Title */
+/* ===== TITLE ===== */
 .title {
-    color: white;
-    font-size: 32px;
     text-align: center;
-    font-weight: bold;
+    font-size: 28px;
+    font-weight: 600;
+    color: white;
     margin-bottom: 20px;
 }
 
-/* Buttons */
+/* ===== INPUT FIELDS ===== */
+.stTextInput input {
+    border-radius: 10px;
+    border: 1px solid rgba(255,255,255,0.3);
+    padding: 10px;
+    transition: 0.3s;
+}
+
+/* Focus effect */
+.stTextInput input:focus {
+    border: 1px solid #4da6ff;
+    box-shadow: 0 0 8px rgba(77,166,255,0.6);
+}
+
+/* ===== BUTTON ===== */
 .stButton button {
     width: 100%;
-    border-radius: 8px;
-    background-color: #1f4e79;
+    border-radius: 10px;
+    background: linear-gradient(135deg, #1f4e79, #4da6ff);
     color: white;
+    font-weight: 600;
+    transition: 0.3s;
+}
+
+/* Hover animation */
+.stButton button:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+}
+
+/* ===== TABS ===== */
+button[data-baseweb="tab"] {
+    font-weight: 600;
+    transition: 0.3s;
+}
+
+button[data-baseweb="tab"]:hover {
+    color: #4da6ff;
+}
+
+/* ===== ANIMATION ===== */
+@keyframes fadeIn {
+    from {opacity: 0; transform: translateY(20px);}
+    to {opacity: 1; transform: translateY(0);}
 }
 
 </style>
