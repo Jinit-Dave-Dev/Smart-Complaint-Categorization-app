@@ -15,54 +15,61 @@ st.set_page_config(page_title="Smart Complaint System", layout="wide")
 st.markdown("""
 <style>
 
-/* Remove top spacing */
-.block-container {
-    padding-top: 0rem;
+/* Full page reset */
+html, body, [data-testid="stAppViewContainer"] {
+    height: 100%;
+    margin: 0;
+    padding: 0;
 }
 
-/* Full background image */
-.stApp {
-    background: url("https://images.unsplash.com/photo-1521791136064-7986c2920216") no-repeat center center fixed;
+/* Background image (government style) */
+[data-testid="stAppViewContainer"] {
+    background: url("https://images.unsplash.com/photo-1573164713988-8665fc963095") no-repeat center center fixed;
     background-size: cover;
 }
 
 /* Dark overlay */
-.stApp::before {
+[data-testid="stAppViewContainer"]::before {
     content: "";
     position: fixed;
     inset: 0;
-    background: rgba(0, 30, 60, 0.65);
+    background: rgba(0, 40, 80, 0.75);
     z-index: 0;
 }
 
-/* Center card */
-.center-card {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
+/* Remove Streamlit spacing */
+.block-container {
+    padding-top: 0rem;
 }
 
-/* Card UI */
+/* Center login card */
+.center-card {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+}
+
+/* Card */
 .card {
-    background: rgba(255,255,255,0.96);
-    padding: 35px;
-    border-radius: 15px;
-    width: 380px;
+    background: rgba(255,255,255,0.95);
+    padding: 40px;
+    border-radius: 16px;
+    width: 400px;
     box-shadow: 0px 10px 40px rgba(0,0,0,0.4);
-    animation: fadeIn 0.6s ease-in-out;
+    animation: fadeIn 0.6s ease;
 }
 
 /* Animation */
 @keyframes fadeIn {
-    from {opacity: 0; transform: translate(-50%, -60%);}
-    to {opacity: 1; transform: translate(-50%, -50%);}
+    from {opacity: 0; transform: translateY(20px);}
+    to {opacity: 1; transform: translateY(0);}
 }
 
 /* Title */
 .title {
     text-align: center;
-    font-size: 22px;
+    font-size: 24px;
     font-weight: bold;
     color: #1f4e79;
     margin-bottom: 20px;
@@ -74,10 +81,6 @@ st.markdown("""
     border-radius: 8px;
     background-color: #1f4e79;
     color: white;
-}
-
-.stButton button:hover {
-    background-color: #163b5c;
 }
 
 </style>
@@ -158,7 +161,8 @@ def login():
                 st.success("Registered Successfully")
             else:
                 st.warning("Enter all fields")
-
+                
+    st.markdown('<div class="center-card"><div class="card">', unsafe_allow_html=True)
     st.markdown('</div></div>', unsafe_allow_html=True)
 
 
@@ -263,7 +267,8 @@ def seed_data():
         """, (user, text, prediction, category, confidence))
 
     conn.commit()
-    seed_data()
+    
+seed_data()
 
 # -------------------- HELPERS --------------------
 def get_category(text):
