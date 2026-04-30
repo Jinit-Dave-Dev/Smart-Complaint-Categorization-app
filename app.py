@@ -11,6 +11,69 @@ from datetime import datetime
 import uuid
 
 st.set_page_config(page_title="Smart Complaint System", layout="wide")
+# -------------------- GLOBAL LOGIN UI STYLE --------------------
+st.markdown("""
+<style>
+
+/* Remove top spacing */
+.block-container {
+    padding-top: 0rem;
+}
+
+/* Background Image */
+.stApp {
+    background: url("https://images.unsplash.com/photo-1605902711622-cfb43c44367f") no-repeat center center fixed;
+    background-size: cover;
+}
+
+/* Dark Overlay */
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 40, 80, 0.75);
+    z-index: 0;
+}
+
+/* Center Card */
+.center-box {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1;
+}
+
+/* Card */
+.card {
+    background: rgba(255,255,255,0.96);
+    padding: 35px;
+    border-radius: 15px;
+    width: 380px;
+    box-shadow: 0px 10px 40px rgba(0,0,0,0.4);
+}
+
+/* Title */
+.title {
+    text-align: center;
+    font-size: 22px;
+    font-weight: bold;
+    color: #1f4e79;
+    margin-bottom: 20px;
+}
+
+/* Buttons */
+.stButton button {
+    width: 100%;
+    border-radius: 8px;
+    background-color: #1f4e79;
+    color: white;
+}
+
+</style>
+""", unsafe_allow_html=True)
 
 # -------------------- DB --------------------
 conn = sqlite3.connect("complaints.db", check_same_thread=False)
@@ -49,103 +112,45 @@ if "user" not in st.session_state:
 
 # -------------------- LOGIN --------------------
 def login():
+        st.markdown('<div class="overlay"></div>', unsafe_allow_html=True)
+    st.markdown('<div class="center-box">', unsafe_allow_html=True)
+    st.markdown('<div class="card">', unsafe_allow_html=True)
 
-    st.markdown("""
-    <style>
+    st.markdown('<div class="title">🏛️ Government Complaint Portal</div>', unsafe_allow_html=True)
 
-    /* Remove Streamlit default padding */
-    .block-container {
-        padding-top: 0rem;
-    }
+    # -------- TABS --------
+    tab1, tab2 = st.tabs(["🔐 Login", "📝 Register"])
 
-    /* Background */
-    .stApp {
-        background: url("https://images.unsplash.com/photo-1605902711622-cfb43c44367f") no-repeat center center fixed;
-        background-size: cover;
-    }
+    # ===== LOGIN =====
+    with tab1:
+        u = st.text_input("Username", key="login_user")
+        p = st.text_input("Password", type="password", key="login_pass")
 
-    /* Overlay */
-    .overlay {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        background: rgba(0, 40, 80, 0.75);
-        z-index: 0;
-    }
+        if st.button("Login"):
+            c.execute("SELECT * FROM users WHERE username=? AND password=?", (u, p))
+            if c.fetchone():
+                st.session_state.logged_in = True
+                st.session_state.user = u
+                st.rerun()
+            else:
+                st.error("Invalid Credentials")
 
-    /* Center layout */
-    .center-box {
-        position: fixed;
-        top: 50%;
-        left: 50%;
-        transform: translate(-50%, -50%);
-        z-index: 1;
-    }
+    # ===== REGISTER =====
+    with tab2:
+        ru = st.text_input("New Username", key="reg_user")
+        rp = st.text_input("New Password", type="password", key="reg_pass")
 
-    /* Card */
-    .card {
-        background: rgba(255,255,255,0.95);
-        padding: 35px;
-        border-radius: 15px;
-        width: 380px;
-        box-shadow: 0px 10px 40px rgba(0,0,0,0.4);
-        animation: fadeIn 0.7s ease-in-out;
-    }
+        if st.button("Register"):
+            if ru and rp:
+                c.execute("INSERT INTO users VALUES (?,?)", (ru, rp))
+                conn.commit()
+                st.success("Registered Successfully")
+            else:
+                st.warning("Enter all fields")
 
-    /* Animation */
-    @keyframes fadeIn {
-        from {
-            opacity: 0;
-            transform: translate(-50%, -60%);
-        }
-        to {
-            opacity: 1;
-            transform: translate(-50%, -50%);
-        }
-    }
+    st.markdown('</div></div>', unsafe_allow_html=True)
 
-    /* Title */
-    .title {
-        text-align: center;
-        font-size: 22px;
-        font-weight: bold;
-        color: #1f4e79;
-        margin-bottom: 20px;
-    }
 
-    /* Inputs */
-    .stTextInput input {
-        border-radius: 8px;
-        border: 1px solid #ccc;
-        padding: 10px;
-    }
-
-    /* Buttons */
-    .stButton button {
-        width: 100%;
-        border-radius: 8px;
-        background-color: #1f4e79;
-        color: white;
-        font-weight: bold;
-    }
-
-    .stButton button:hover {
-        background-color: #163b5c;
-    }
-
-    </style>
-
-    <div class="overlay"></div>
-    <div class="center-box">
-    <div class="card">
-    """, unsafe_allow_html=True)
-
-    st.markdown(
-        '<div class="title">🏛️ Smart Complaint Government Portal</div>',
-        unsafe_allow_html=True
-    )
 
     # -------- INPUTS (IMPORTANT: keys added) --------
     u = st.text_input("Username", key="login_user")
