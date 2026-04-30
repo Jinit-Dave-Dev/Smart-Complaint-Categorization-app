@@ -15,18 +15,18 @@ st.set_page_config(page_title="Smart Complaint System", layout="wide")
 st.markdown("""
 <style>
 
-/* REMOVE DEFAULT SPACING */
+/* REMOVE TOP SPACE */
 .block-container {
     padding-top: 0rem !important;
 }
 
-/* FULL BACKGROUND */
+/* BACKGROUND IMAGE */
 [data-testid="stAppViewContainer"] {
     background: url("https://images.unsplash.com/photo-1605902711622-cfb43c44367f") no-repeat center center fixed;
     background-size: cover;
 }
 
-/* DARK OVERLAY (IMPORTANT) */
+/* DARK OVERLAY */
 [data-testid="stAppViewContainer"]::before {
     content: "";
     position: fixed;
@@ -35,19 +35,23 @@ st.markdown("""
     z-index: 0;
 }
 
-/* CENTER FIX */
+/* CENTER WHOLE CONTENT */
 [data-testid="stVerticalBlock"] {
+    display: flex;
     justify-content: center;
+    align-items: center;
+    height: 100vh;
 }
 
-/* LOGIN CARD */
-.login-card {
+/* 🎯 APPLY CARD TO TAB CONTAINER (THIS IS THE KEY FIX) */
+[data-testid="stTabs"] {
     position: relative;
     z-index: 2;
     background: rgba(255,255,255,0.08);
     backdrop-filter: blur(20px);
     padding: 40px;
     border-radius: 18px;
+    width: 420px;
     box-shadow: 0 10px 40px rgba(0,0,0,0.4);
     animation: fadeIn 0.6s ease;
 }
@@ -61,7 +65,7 @@ st.markdown("""
     margin-bottom: 20px;
 }
 
-/* INPUT FIELDS */
+/* INPUT */
 .stTextInput input {
     border-radius: 10px;
     border: 1px solid rgba(255,255,255,0.3);
@@ -69,7 +73,6 @@ st.markdown("""
     transition: 0.3s;
 }
 
-/* INPUT FOCUS EFFECT */
 .stTextInput input:focus {
     border: 1px solid #4da6ff;
     box-shadow: 0 0 10px rgba(77,166,255,0.6);
@@ -85,9 +88,8 @@ st.markdown("""
     transition: 0.3s;
 }
 
-/* BUTTON HOVER */
 .stButton button:hover {
-    transform: translateY(-2px) scale(1.02);
+    transform: translateY(-2px);
     box-shadow: 0 6px 20px rgba(0,0,0,0.4);
 }
 
@@ -95,10 +97,8 @@ st.markdown("""
 button[data-baseweb="tab"] {
     font-weight: 600;
     color: white;
-    transition: 0.3s;
 }
 
-/* TAB HOVER */
 button[data-baseweb="tab"]:hover {
     color: #4da6ff;
 }
@@ -108,7 +108,7 @@ button[data-baseweb="tab"]:hover {
     background: transparent !important;
 }
 
-/* FADE ANIMATION */
+/* ANIMATION */
 @keyframes fadeIn {
     from {opacity: 0; transform: translateY(20px);}
     to {opacity: 1; transform: translateY(0);}
@@ -156,48 +156,37 @@ if "user" not in st.session_state:
 # -------------------- LOGIN --------------------
 def login():
 
-    # Create center layout using columns (stable)
-    col1, col2, col3 = st.columns([1, 1.5, 1])
+    st.markdown(
+        '<div class="title">🏛️ Smart Government Complaint Portal</div>',
+        unsafe_allow_html=True
+    )
 
-    with col2:
+    tab1, tab2 = st.tabs(["🔐 Login", "📝 Register"])
 
-        st.markdown('<div class="login-card">', unsafe_allow_html=True)
+    with tab1:
+        u = st.text_input("Username", key="login_user")
+        p = st.text_input("Password", type="password", key="login_pass")
 
-        st.markdown(
-            '<div class="title">🏛️ Smart Government Complaint Portal</div>',
-            unsafe_allow_html=True
-        )
+        if st.button("Login", use_container_width=True):
+            c.execute("SELECT * FROM users WHERE username=? AND password=?", (u, p))
+            if c.fetchone():
+                st.session_state.logged_in = True
+                st.session_state.user = u
+                st.rerun()
+            else:
+                st.error("Invalid Credentials")
 
-        tab1, tab2 = st.tabs(["🔐 Login", "📝 Register"])
+    with tab2:
+        ru = st.text_input("New Username", key="reg_user")
+        rp = st.text_input("New Password", type="password", key="reg_pass")
 
-        # LOGIN
-        with tab1:
-            u = st.text_input("Username", key="login_user")
-            p = st.text_input("Password", type="password", key="login_pass")
-
-            if st.button("Login", use_container_width=True):
-                c.execute("SELECT * FROM users WHERE username=? AND password=?", (u, p))
-                if c.fetchone():
-                    st.session_state.logged_in = True
-                    st.session_state.user = u
-                    st.rerun()
-                else:
-                    st.error("Invalid Credentials")
-
-        # REGISTER
-        with tab2:
-            ru = st.text_input("New Username", key="reg_user")
-            rp = st.text_input("New Password", type="password", key="reg_pass")
-
-            if st.button("Register", use_container_width=True):
-                if ru and rp:
-                    c.execute("INSERT INTO users VALUES (?,?)", (ru, rp))
-                    conn.commit()
-                    st.success("Registered Successfully")
-                else:
-                    st.warning("Enter all fields")
-
-        st.markdown('</div>', unsafe_allow_html=True)
+        if st.button("Register", use_container_width=True):
+            if ru and rp:
+                c.execute("INSERT INTO users VALUES (?,?)", (ru, rp))
+                conn.commit()
+                st.success("Registered Successfully")
+            else:
+                st.warning("Enter all fields")
 
 if not st.session_state.logged_in:
     login()
