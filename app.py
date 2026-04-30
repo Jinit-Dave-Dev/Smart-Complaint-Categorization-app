@@ -15,74 +15,19 @@ st.set_page_config(page_title="Smart Complaint System", layout="wide")
 st.markdown("""
 <style>
 
-/* Remove padding */
+/* Remove top spacing */
 .block-container {
     padding-top: 0rem;
 }
 
-/* Background fix */
-[data-testid="stAppViewContainer"] {
-    background: url("https://images.unsplash.com/photo-1605902711622-cfb43c44367f") no-repeat center center fixed;
-    background-size: cover;
-}
-
-/* Overlay */
-[data-testid="stAppViewContainer"]::before {
-    content: "";
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,40,80,0.7);
-    z-index: -1;
-}
-
-/* Center card */
-.center-card {
-    position: fixed;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    background: white;
-    padding: 35px;
-    border-radius: 15px;
-    width: 380px;
-    box-shadow: 0px 10px 40px rgba(0,0,0,0.4);
-}
-
-/* Title */
-.title {
-    text-align: center;
-    font-size: 22px;
-    font-weight: bold;
-    color: #1f4e79;
-    margin-bottom: 20px;
-}
-
-</style>
-""", unsafe_allow_html=True)
-
-
-# -------------------- DB --------------------
-conn = sqlite3.connect("complaints.db", check_same_thread=False)
-<style>
-
-/* FULL PAGE BACKGROUND FIX */
-html, body, .stApp {
-    height: 100%;
-}
-
-/* Background image */
+/* Full background image */
 .stApp {
-    background-image: url("https://images.unsplash.com/photo-1521791136064-7986c2920216");
+    background: url("https://images.unsplash.com/photo-1521791136064-7986c2920216") no-repeat center center fixed;
     background-size: cover;
-    background-position: center;
-    background-attachment: fixed;
 }
 
 /* Dark overlay */
-[data-testid="stAppViewContainer"]::before {
+.stApp::before {
     content: "";
     position: fixed;
     inset: 0;
@@ -90,23 +35,17 @@ html, body, .stApp {
     z-index: 0;
 }
 
-/* Remove default spacing */
-.block-container {
-    padding-top: 0rem;
-}
-
 /* Center card */
 .center-card {
     position: fixed;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
-    z-index: 10;
 }
 
 /* Card UI */
 .card {
-    background: rgba(255,255,255,0.95);
+    background: rgba(255,255,255,0.96);
     padding: 35px;
     border-radius: 15px;
     width: 380px;
@@ -137,8 +76,16 @@ html, body, .stApp {
     color: white;
 }
 
+.stButton button:hover {
+    background-color: #163b5c;
+}
+
 </style>
-""", unsafe_allow_html=True) check_same_thread=False)
+""", unsafe_allow_html=True)
+
+
+# -------------------- DB --------------------
+
 c = conn.cursor()
 
 c.execute("""
@@ -175,16 +122,10 @@ if "user" not in st.session_state:
 # -------------------- LOGIN --------------------
 def login():
 
-    # FIX duplicate key issue by resetting keys per run
-    if "form_id" not in st.session_state:
-        st.session_state.form_id = str(uuid.uuid4())
-
-    form_key = st.session_state.form_id
-
     st.markdown('<div class="center-card"><div class="card">', unsafe_allow_html=True)
 
     st.markdown(
-        '<div class="title">🏛️Smart Government Complaint Portal</div>',
+        '<div class="title">🏛️ Smart Government Complaint Portal</div>',
         unsafe_allow_html=True
     )
 
@@ -195,12 +136,11 @@ def login():
         u = st.text_input("Username")
         p = st.text_input("Password", type="password")
 
-        if st.button("Login", key="login_btn_" + form_key):
+        if st.button("Login"):
             c.execute("SELECT * FROM users WHERE username=? AND password=?", (u, p))
             if c.fetchone():
                 st.session_state.logged_in = True
                 st.session_state.user = u
-                st.session_state.form_id = str(uuid.uuid4())  # reset keys
                 st.rerun()
             else:
                 st.error("Invalid Credentials")
@@ -210,12 +150,11 @@ def login():
         ru = st.text_input("New Username")
         rp = st.text_input("New Password", type="password")
 
-        if st.button("Register", key="reg_btn_" + form_key):
+        if st.button("Register"):
             if ru and rp:
                 c.execute("INSERT INTO users VALUES (?,?)", (ru, rp))
                 conn.commit()
                 st.success("Registered Successfully")
-                st.session_state.form_id = str(uuid.uuid4())
             else:
                 st.warning("Enter all fields")
 
