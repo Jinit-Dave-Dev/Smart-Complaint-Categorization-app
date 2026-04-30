@@ -115,7 +115,7 @@ def login():
 
     st.markdown('<div class="overlay"></div>', unsafe_allow_html=True)
     st.markdown('<div class="center-box">', unsafe_allow_html=True)
-    st.markdown('<div class="card">', unsafe_allow_html=True)
+    #st.markdown('<div class="card">', unsafe_allow_html=True)
 
     st.markdown(
         '<div class="title">🏛️ Government Complaint Portal</div>',
