@@ -15,23 +15,30 @@ st.set_page_config(page_title="Smart Complaint System", layout="wide")
 st.markdown("""
 <style>
 
-/* Background FIX (Streamlit Cloud compatible) */
+/* Remove padding */
+.block-container {
+    padding-top: 0rem;
+}
+
+/* Background fix */
 [data-testid="stAppViewContainer"] {
     background: url("https://images.unsplash.com/photo-1605902711622-cfb43c44367f") no-repeat center center fixed;
     background-size: cover;
 }
 
-/* Dark overlay */
+/* Overlay */
 [data-testid="stAppViewContainer"]::before {
     content: "";
     position: fixed;
-    top: 0; left: 0;
-    width: 100%; height: 100%;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
     background: rgba(0,40,80,0.7);
     z-index: -1;
 }
 
-/* Center Card */
+/* Center card */
 .center-card {
     position: fixed;
     top: 50%;
@@ -44,16 +51,18 @@ st.markdown("""
     box-shadow: 0px 10px 40px rgba(0,0,0,0.4);
 }
 
+/* Title */
 .title {
-    text-align:center;
-    font-size:22px;
-    font-weight:bold;
-    color:#1f4e79;
-    margin-bottom:20px;
+    text-align: center;
+    font-size: 22px;
+    font-weight: bold;
+    color: #1f4e79;
+    margin-bottom: 20px;
 }
 
 </style>
 """, unsafe_allow_html=True)
+
 
 # -------------------- DB --------------------
 conn = sqlite3.connect("complaints.db", check_same_thread=False)
