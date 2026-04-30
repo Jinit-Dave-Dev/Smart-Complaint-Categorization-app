@@ -51,75 +51,109 @@ if "user" not in st.session_state:
 def login():
 
     st.markdown("""
-<style>
+    <style>
 
-/* Clean Background */
-.stApp {
-    background: linear-gradient(to right, #eef2f7, #ffffff);
-}
+    /* Remove Streamlit default padding */
+    .block-container {
+        padding-top: 0rem;
+    }
 
-/* Center Login Box */
-.login-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 90vh;
-}
+    /* Background */
+    .stApp {
+        background: url("https://images.unsplash.com/photo-1605902711622-cfb43c44367f") no-repeat center center fixed;
+        background-size: cover;
+    }
 
-/* Login Card */
-.login-box {
-    background: white;
-    padding: 35px;
-    border-radius: 12px;
-    width: 380px;
-    box-shadow: 0px 4px 20px rgba(0,0,0,0.1);
-}
+    /* Overlay */
+    .overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 40, 80, 0.75);
+        z-index: 0;
+    }
 
-/* Title */
-.title {
-    text-align: center;
-    font-size: 20px;
-    font-weight: bold;
-    color: #1f4e79;
-    margin-bottom: 20px;
-}
+    /* Center layout */
+    .center-box {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 1;
+    }
 
-/* Inputs */
-.stTextInput input {
-    border-radius: 8px;
-    border: 1px solid #ccc;
-}
+    /* Card */
+    .card {
+        background: rgba(255,255,255,0.95);
+        padding: 35px;
+        border-radius: 15px;
+        width: 380px;
+        box-shadow: 0px 10px 40px rgba(0,0,0,0.4);
+        animation: fadeIn 0.7s ease-in-out;
+    }
 
-/* Buttons */
-.stButton button {
-    width: 100%;
-    border-radius: 8px;
-    background-color: #1f4e79;
-    color: white;
-    font-weight: bold;
-}
+    /* Animation */
+    @keyframes fadeIn {
+        from {
+            opacity: 0;
+            transform: translate(-50%, -60%);
+        }
+        to {
+            opacity: 1;
+            transform: translate(-50%, -50%);
+        }
+    }
 
-/* Hover */
-.stButton button:hover {
-    background-color: #163b5c;
-}
+    /* Title */
+    .title {
+        text-align: center;
+        font-size: 22px;
+        font-weight: bold;
+        color: #1f4e79;
+        margin-bottom: 20px;
+    }
 
-</style>
-""", unsafe_allow_html=True)
+    /* Inputs */
+    .stTextInput input {
+        border-radius: 8px;
+        border: 1px solid #ccc;
+        padding: 10px;
+    }
 
-    st.markdown('<div class="login-container">', unsafe_allow_html=True)
-    st.markdown('<div class="login-box">', unsafe_allow_html=True)
+    /* Buttons */
+    .stButton button {
+        width: 100%;
+        border-radius: 8px;
+        background-color: #1f4e79;
+        color: white;
+        font-weight: bold;
+    }
+
+    .stButton button:hover {
+        background-color: #163b5c;
+    }
+
+    </style>
+
+    <div class="overlay"></div>
+    <div class="center-box">
+    <div class="card">
+    """, unsafe_allow_html=True)
 
     st.markdown(
-        '<div class="title">🏛️ SMART COMPLAINT CATEGORIZATION GOVERNMENT PORTAL</div>',
+        '<div class="title">🏛️ Smart Complaint Government Portal</div>',
         unsafe_allow_html=True
     )
 
-    u = st.text_input("Username")
-    p = st.text_input("Password", type="password")
+    # -------- INPUTS (IMPORTANT: keys added) --------
+    u = st.text_input("Username", key="login_user")
+    p = st.text_input("Password", type="password", key="login_pass")
 
     col1, col2 = st.columns(2)
 
+    # -------- LOGIN --------
     if col1.button("Login"):
         c.execute("SELECT * FROM users WHERE username=? AND password=?", (u, p))
         if c.fetchone():
@@ -129,13 +163,16 @@ def login():
         else:
             st.error("Invalid Credentials")
 
+    # -------- REGISTER --------
     if col2.button("Register"):
-        c.execute("INSERT INTO users VALUES (?,?)", (u, p))
-        conn.commit()
-        st.success("Registered")
+        if u and p:
+            c.execute("INSERT INTO users VALUES (?,?)", (u, p))
+            conn.commit()
+            st.success("Registered Successfully")
+        else:
+            st.warning("Enter Username & Password")
 
-    st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("</div></div>", unsafe_allow_html=True)
 
 
 if not st.session_state.logged_in:
