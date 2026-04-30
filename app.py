@@ -39,7 +39,7 @@ html, body, [data-testid="stAppViewContainer"] {
 
 /* Remove Streamlit spacing */
 .block-container {
-    padding-top: 0rem;
+    padding-top: 2rem;
 }
 
 /* Center login card */
@@ -48,6 +48,7 @@ html, body, [data-testid="stAppViewContainer"] {
     justify-content: center;
     align-items: center;
     height: 100vh;
+    overflow: hidden;
 }
 
 /* Card */
@@ -126,7 +127,8 @@ if "user" not in st.session_state:
 
 def login():
 
-    #st.markdown('<div class="center-card"><div class="card">', unsafe_allow_html=True)
+    st.markdown('<div class="center-card">', unsafe_allow_html=True)
+    st.markdown('<div class="card">', unsafe_allow_html=True)
 
     st.markdown(
         '<div class="title">🏛️ Smart Government Complaint Portal</div>',
@@ -135,7 +137,7 @@ def login():
 
     tab1, tab2 = st.tabs(["🔐 Login", "📝 Register"])
 
-    # ===== LOGIN =====
+    # LOGIN
     with tab1:
         u = st.text_input("Username")
         p = st.text_input("Password", type="password")
@@ -149,7 +151,7 @@ def login():
             else:
                 st.error("Invalid Credentials")
 
-    # ===== REGISTER =====
+    # REGISTER
     with tab2:
         ru = st.text_input("New Username")
         rp = st.text_input("New Password", type="password")
@@ -161,10 +163,9 @@ def login():
                 st.success("Registered Successfully")
             else:
                 st.warning("Enter all fields")
-                
-    st.markdown('<div class="center-card"><div class="card">', unsafe_allow_html=True)
-    st.markdown('</div></div>', unsafe_allow_html=True)
 
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
 if not st.session_state.logged_in:
     login()
@@ -367,7 +368,7 @@ with tabs[0]:
         conn.commit()
         st.success(f"Complaint Registered | ID: {tracking_id}")
 
-    data = pd.read_sql_query("SELECT * FROM complaints WHERE user=?", conn, params=(st.session_state.user,))
+    data = pd.read_sql_query("SELECT * FROM complaints", conn)
     if not data.empty:
         data.fillna("N/A", inplace=True)
         st.dataframe(data.iloc[::-1], use_container_width=True)
