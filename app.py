@@ -51,37 +51,61 @@ if "user" not in st.session_state:
 def login():
 
     st.markdown("""
-    <style>
-    .stApp {
-        background-image: url("https://images.unsplash.com/photo-1506744038136-46273834b3fb");
-        background-size: cover;
-        background-position: center;
-    }
+<style>
 
-    .login-container {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-        height: 90vh;
-    }
+/* Clean Background */
+.stApp {
+    background: linear-gradient(to right, #eef2f7, #ffffff);
+}
 
-    .login-box {
-        background: rgba(0,0,0,0.75);
-        padding: 40px;
-        border-radius: 15px;
-        width: 380px;
-        box-shadow: 0px 0px 25px rgba(0,0,0,0.6);
-    }
+/* Center Login Box */
+.login-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 90vh;
+}
 
-    .title {
-        text-align: center;
-        font-size: 22px;
-        font-weight: bold;
-        color: white;
-        margin-bottom: 20px;
-    }
-    </style>
-    """, unsafe_allow_html=True)
+/* Login Card */
+.login-box {
+    background: white;
+    padding: 35px;
+    border-radius: 12px;
+    width: 380px;
+    box-shadow: 0px 4px 20px rgba(0,0,0,0.1);
+}
+
+/* Title */
+.title {
+    text-align: center;
+    font-size: 20px;
+    font-weight: bold;
+    color: #1f4e79;
+    margin-bottom: 20px;
+}
+
+/* Inputs */
+.stTextInput input {
+    border-radius: 8px;
+    border: 1px solid #ccc;
+}
+
+/* Buttons */
+.stButton button {
+    width: 100%;
+    border-radius: 8px;
+    background-color: #1f4e79;
+    color: white;
+    font-weight: bold;
+}
+
+/* Hover */
+.stButton button:hover {
+    background-color: #163b5c;
+}
+
+</style>
+""", unsafe_allow_html=True)
 
     st.markdown('<div class="login-container">', unsafe_allow_html=True)
     st.markdown('<div class="login-box">', unsafe_allow_html=True)
