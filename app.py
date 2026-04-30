@@ -130,7 +130,7 @@ if "user" not in st.session_state:
 def login():
 
     # FULL CENTER WRAPPER
-    #st.markdown('<div class="center-card"><div class="card">', unsafe_allow_html=True)
+    st.markdown('<div class="center-card"><div class="card">', unsafe_allow_html=True)
 
     st.markdown(
         '<div class="title">🏛️ Smart Government Complaint Portal</div>',
