@@ -112,11 +112,15 @@ if "user" not in st.session_state:
 
 # -------------------- LOGIN --------------------
 def login():
-        st.markdown('<div class="overlay"></div>', unsafe_allow_html=True)
+
+    st.markdown('<div class="overlay"></div>', unsafe_allow_html=True)
     st.markdown('<div class="center-box">', unsafe_allow_html=True)
     st.markdown('<div class="card">', unsafe_allow_html=True)
 
-    st.markdown('<div class="title">🏛️ Government Complaint Portal</div>', unsafe_allow_html=True)
+    st.markdown(
+        '<div class="title">🏛️ Government Complaint Portal</div>',
+        unsafe_allow_html=True
+    )
 
     # -------- TABS --------
     tab1, tab2 = st.tabs(["🔐 Login", "📝 Register"])
@@ -127,7 +131,10 @@ def login():
         p = st.text_input("Password", type="password", key="login_pass")
 
         if st.button("Login"):
-            c.execute("SELECT * FROM users WHERE username=? AND password=?", (u, p))
+            c.execute(
+                "SELECT * FROM users WHERE username=? AND password=?",
+                (u, p)
+            )
             if c.fetchone():
                 st.session_state.logged_in = True
                 st.session_state.user = u
@@ -148,9 +155,8 @@ def login():
             else:
                 st.warning("Enter all fields")
 
-    st.markdown('</div></div>', unsafe_allow_html=True)
-
-
+    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown('</div>', unsafe_allow_html=True)
 
     # -------- INPUTS (IMPORTANT: keys added) --------
     u = st.text_input("Username", key="login_user")
