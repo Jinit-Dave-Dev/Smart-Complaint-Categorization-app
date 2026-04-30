@@ -126,7 +126,7 @@ def login():
 
     st.markdown(
         '<div class="title">🏛️ Smart Government Complaint Portal</div>',
-        unsafe_allow_html=True
+        #unsafe_allow_html=True
     )
 
     tab1, tab2 = st.tabs(["🔐 Login", "📝 Register"])
