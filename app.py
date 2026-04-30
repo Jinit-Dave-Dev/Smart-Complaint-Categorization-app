@@ -85,7 +85,7 @@ st.markdown("""
 
 
 # -------------------- DB --------------------
-
+conn = sqlite3.connect("complaints.db", check_same_thread=False)
 c = conn.cursor()
 
 c.execute("""
