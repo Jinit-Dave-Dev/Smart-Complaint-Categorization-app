@@ -72,10 +72,10 @@ html, body, [data-testid="stAppViewContainer"] {
 
 /* Title */
 .title {
+    color: white;
+    font-size: 32px;
     text-align: center;
-    font-size: 24px;
     font-weight: bold;
-    color: #1f4e79;
     margin-bottom: 20px;
 }
 
@@ -129,10 +129,8 @@ if "user" not in st.session_state:
 # -------------------- LOGIN --------------------
 def login():
 
-    st.markdown("""
-    <div class="center-card">
-        <div class="card">
-    """, unsafe_allow_html=True)
+    # FULL CENTER WRAPPER
+    st.markdown('<div class="center-card"><div class="card">', unsafe_allow_html=True)
 
     st.markdown(
         '<div class="title">🏛️ Smart Government Complaint Portal</div>',
@@ -168,10 +166,8 @@ def login():
             else:
                 st.warning("Enter all fields")
 
-    st.markdown("""
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
+    # CLOSE BOTH PROPERLY
+    st.markdown('</div></div>', unsafe_allow_html=True)
 
 if not st.session_state.logged_in:
     login()
