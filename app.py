@@ -56,7 +56,7 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # -------------------- DB --------------------
-conn = sqlite3.connect("complaints.db",st.markdown("""
+conn = sqlite3.connect("complaints.db", check_same_thread=False)
 <style>
 
 /* FULL PAGE BACKGROUND FIX */
