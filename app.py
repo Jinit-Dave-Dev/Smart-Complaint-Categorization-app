@@ -12,7 +12,48 @@ import uuid
 
 st.set_page_config(page_title="Smart Complaint System", layout="wide")
 # -------------------- GLOBAL LOGIN UI STYLE --------------------
+st.markdown("""
+<style>
 
+/* Background FIX (Streamlit Cloud compatible) */
+[data-testid="stAppViewContainer"] {
+    background: url("https://images.unsplash.com/photo-1605902711622-cfb43c44367f") no-repeat center center fixed;
+    background-size: cover;
+}
+
+/* Dark overlay */
+[data-testid="stAppViewContainer"]::before {
+    content: "";
+    position: fixed;
+    top: 0; left: 0;
+    width: 100%; height: 100%;
+    background: rgba(0,40,80,0.7);
+    z-index: -1;
+}
+
+/* Center Card */
+.center-card {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: white;
+    padding: 35px;
+    border-radius: 15px;
+    width: 380px;
+    box-shadow: 0px 10px 40px rgba(0,0,0,0.4);
+}
+
+.title {
+    text-align:center;
+    font-size:22px;
+    font-weight:bold;
+    color:#1f4e79;
+    margin-bottom:20px;
+}
+
+</style>
+""", unsafe_allow_html=True)
 
 # -------------------- DB --------------------
 conn = sqlite3.connect("complaints.db",st.markdown("""
@@ -134,7 +175,7 @@ def login():
     st.markdown('<div class="center-card"><div class="card">', unsafe_allow_html=True)
 
     st.markdown(
-        '<div class="title">🏛️ Government Complaint Portal</div>',
+        '<div class="title">🏛️Smart Government Complaint Portal</div>',
         unsafe_allow_html=True
     )
 
