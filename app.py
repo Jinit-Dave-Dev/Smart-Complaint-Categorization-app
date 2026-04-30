@@ -120,13 +120,14 @@ if "user" not in st.session_state:
     st.session_state.user = ""
 
 # -------------------- LOGIN --------------------
+
 def login():
 
     #st.markdown('<div class="center-card"><div class="card">', unsafe_allow_html=True)
 
     st.markdown(
         '<div class="title">🏛️ Smart Government Complaint Portal</div>',
-        #unsafe_allow_html=True
+        unsafe_allow_html=True
     )
 
     tab1, tab2 = st.tabs(["🔐 Login", "📝 Register"])
