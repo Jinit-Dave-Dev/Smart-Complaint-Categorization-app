@@ -24,7 +24,7 @@ html, body, [data-testid="stAppViewContainer"] {
 
 /* Background image (government style) */
 [data-testid="stAppViewContainer"] {
-    background: url("https://images.unsplash.com/photo-1573164713988-8665fc963095") no-repeat center center fixed;
+    background: url("https://images.unsplash.com/photo-1557804506-669a67965ba0") no-repeat center center fixed;
     background-size: cover;
 }
 
@@ -33,7 +33,7 @@ html, body, [data-testid="stAppViewContainer"] {
     content: "";
     position: fixed;
     inset: 0;
-    background: rgba(0, 40, 80, 0.75);
+    background: rgba(0, 30, 70, 0.65);
     z-index: 0;
 }
 
@@ -48,7 +48,10 @@ html, body, [data-testid="stAppViewContainer"] {
     justify-content: center;
     align-items: center;
     height: 100vh;
-    overflow: hidden;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
 }
 
 /* Card */
@@ -89,7 +92,7 @@ html, body, [data-testid="stAppViewContainer"] {
 
 
 # -------------------- DB --------------------
-conn = sqlite3.connect("/mount/src/smart-complaint-categorization-app/complaints.db", check_same_thread=False)
+conn = sqlite3.connect("complaints.db", check_same_thread=False)
 c = conn.cursor()
 
 c.execute("""
@@ -124,11 +127,12 @@ if "user" not in st.session_state:
     st.session_state.user = ""
 
 # -------------------- LOGIN --------------------
-
 def login():
 
-    st.markdown('<div class="center-card">', unsafe_allow_html=True)
-    st.markdown('<div class="card">', unsafe_allow_html=True)
+    st.markdown("""
+    <div class="center-card">
+        <div class="card">
+    """, unsafe_allow_html=True)
 
     st.markdown(
         '<div class="title">🏛️ Smart Government Complaint Portal</div>',
@@ -164,8 +168,10 @@ def login():
             else:
                 st.warning("Enter all fields")
 
-    st.markdown('</div>', unsafe_allow_html=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+    st.markdown("""
+        </div>
+    </div>
+    """, unsafe_allow_html=True)
 
 if not st.session_state.logged_in:
     login()
@@ -187,6 +193,7 @@ vectorizer = pickle.load(open("tfidf_vectorizer.pkl", "rb"))
 le = pickle.load(open("label_encoder.pkl", "rb"))
 model = pickle.load(open("logistic_regression_model.pkl", "rb"))
 def seed_data():
+    st.write("Seeding data...")  # TEMP DEBUG
     existing = pd.read_sql_query("SELECT COUNT(*) as cnt FROM complaints", conn)
     if existing["cnt"][0] > 0:
         return
