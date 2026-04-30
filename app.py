@@ -24,7 +24,7 @@ html, body, [data-testid="stAppViewContainer"] {
 
 /* Background image (government style) */
 [data-testid="stAppViewContainer"] {
-    background: url("https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b") no-repeat center center fixed;
+    background: url("https://images.unsplash.com/photo-1590496794008-383c8070b257") no-repeat center center fixed;
     background-size: cover;
 }
 
