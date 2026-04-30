@@ -180,6 +180,89 @@ if st.sidebar.button("Logout"):
 vectorizer = pickle.load(open("tfidf_vectorizer.pkl", "rb"))
 le = pickle.load(open("label_encoder.pkl", "rb"))
 model = pickle.load(open("logistic_regression_model.pkl", "rb"))
+def seed_data():
+    existing = pd.read_sql_query("SELECT COUNT(*) as cnt FROM complaints", conn)
+    if existing["cnt"][0] > 0:
+        return
+
+    sample_data = [
+        # ROAD
+        ("user1","There is a large pothole on the main road near my house causing accidents."),
+        ("user2","Street roads in our area are completely broken and need repair."),
+        ("user3","Road construction work has been incomplete for months."),
+        ("user4","Waterlogging on roads during rain makes it difficult to travel."),
+        ("user5","Street lights on the road are not working properly at night."),
+        ("user6","Uneven road surface causing damage to vehicles."),
+        ("user7","Road divider is broken and dangerous for traffic."),
+        ("user8","No proper signage on newly constructed roads."),
+        ("user9","Heavy traffic congestion due to poor road conditions."),
+        ("user10","Sidewalks are damaged and unsafe for pedestrians."),
+
+        # WATER
+        ("user11","No water supply in our area for the last 2 days."),
+        ("user12","Water coming from taps is dirty and smells bad."),
+        ("user13","Leakage in water pipeline causing wastage."),
+        ("user14","Low water pressure in residential area."),
+        ("user15","Water tank overflow in public area."),
+        ("user16","Drinking water supply is irregular."),
+        ("user17","Broken water pipe flooding the street."),
+        ("user18","Water contamination issue in locality."),
+        ("user19","Water supply timing is not consistent."),
+        ("user20","No water connection in newly developed area."),
+
+        # ELECTRICITY
+        ("user21","Frequent power cuts in our area."),
+        ("user22","Street lights are not working at night."),
+        ("user23","Transformer failure causing blackout."),
+        ("user24","Electric wires are hanging dangerously."),
+        ("user25","Sudden voltage fluctuation damaging appliances."),
+        ("user26","No electricity for last 5 hours."),
+        ("user27","Power outage during night time frequently."),
+        ("user28","Electric pole is tilted and unsafe."),
+        ("user29","Street light flickering continuously."),
+        ("user30","Unauthorized power connections in area."),
+
+        # GARBAGE
+        ("user31","Garbage not collected regularly in our area."),
+        ("user32","Overflowing dustbins causing bad smell."),
+        ("user33","Waste is dumped on roadside without cleaning."),
+        ("user34","Dead animal lying on street for days."),
+        ("user35","Open drainage causing hygiene issues."),
+        ("user36","Mosquito breeding due to garbage accumulation."),
+        ("user37","Public area is very dirty and unhygienic."),
+        ("user38","No garbage bins installed in locality."),
+        ("user39","Sewage water overflowing on roads."),
+        ("user40","Irregular cleaning of streets by municipal workers."),
+
+        # OTHERS
+        ("user41","Noise pollution due to construction work at night."),
+        ("user42","Illegal parking blocking roads."),
+        ("user43","Stray animals creating nuisance in area."),
+        ("user44","Public park is not maintained properly."),
+        ("user45","Street vendors blocking footpaths."),
+        ("user46","Broken public benches in park."),
+        ("user47","No proper street lighting in park area."),
+        ("user48","Encroachment on public land."),
+        ("user49","Lack of security in residential area."),
+        ("user50","Government office staff not responding to complaints.")
+    ]
+
+    for user, text in sample_data:
+        X = vectorizer.transform([text])
+        pred = model.predict(X)
+        prediction = le.inverse_transform(pred)[0]
+
+        category = prediction
+        confidence = str(round(model.predict_proba(X).max() * 100, 2))
+
+        c.execute("""
+        INSERT INTO complaints (
+            user, complaint, prediction, category, confidence
+        ) VALUES (?, ?, ?, ?, ?)
+        """, (user, text, prediction, category, confidence))
+
+    conn.commit()
+    seed_data()
 
 # -------------------- HELPERS --------------------
 def get_category(text):
