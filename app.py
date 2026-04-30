@@ -130,7 +130,7 @@ if "user" not in st.session_state:
 def login():
 
     # FULL CENTER WRAPPER
-    st.markdown('<div class="center-card"><div class="card">', unsafe_allow_html=True)
+    #st.markdown('<div class="center-card"><div class="card">', unsafe_allow_html=True)
 
     st.markdown(
         '<div class="title">🏛️ Smart Government Complaint Portal</div>',
@@ -167,7 +167,7 @@ def login():
                 st.warning("Enter all fields")
 
     # CLOSE BOTH PROPERLY
-    st.markdown('</div></div>', unsafe_allow_html=True)
+    #st.markdown('</div></div>', unsafe_allow_html=True)
 
 if not st.session_state.logged_in:
     login()
@@ -189,10 +189,9 @@ vectorizer = pickle.load(open("tfidf_vectorizer.pkl", "rb"))
 le = pickle.load(open("label_encoder.pkl", "rb"))
 model = pickle.load(open("logistic_regression_model.pkl", "rb"))
 def seed_data():
-    st.write("Seeding data...")  # TEMP DEBUG
     existing = pd.read_sql_query("SELECT COUNT(*) as cnt FROM complaints", conn)
-    if existing["cnt"][0] > 0:
-        return
+    if existing["cnt"][0] >= 50:
+     return
 
     sample_data = [
         # ROAD
