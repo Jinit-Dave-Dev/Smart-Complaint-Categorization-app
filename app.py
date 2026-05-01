@@ -37,7 +37,7 @@ html, body, .stApp {
 /* 🔥 BACKUP (ADD THIS JUST BELOW) */
 [data-testid="stAppViewContainer"] {
     background: linear-gradient(rgba(10,35,70,0.55), rgba(10,35,70,0.55)),
-                url("https://images.unsplash.com/photo-1507525428034-b723cf961d3e");
+                url("https://qhsealert.com/wp-content/uploads/2025/03/Smart-Complaint-Management.png");
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
