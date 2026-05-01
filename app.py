@@ -245,6 +245,29 @@ vectorizer = pickle.load(open("tfidf_vectorizer.pkl", "rb"))
 le = pickle.load(open("label_encoder.pkl", "rb"))
 model = pickle.load(open("logistic_regression_model.pkl", "rb"))
 def seed_data():
+    c.execute("""
+UPDATE complaints SET 
+priority = CASE 
+    WHEN complaint LIKE '%danger%' OR complaint LIKE '%accident%' THEN '🔴 HIGH'
+    ELSE '🟡 MEDIUM'
+END
+""")
+
+c.execute("""
+UPDATE complaints SET 
+department = CASE 
+    WHEN category = 'Road' THEN 'Public Works'
+    WHEN category = 'Water' THEN 'Water Dept'
+    WHEN category = 'Garbage' THEN 'Sanitation'
+    WHEN category = 'Electricity' THEN 'Electric Dept'
+    ELSE 'General'
+END
+""")
+
+c.execute("UPDATE complaints SET status='Resolved' WHERE status IS NULL")
+c.execute("UPDATE complaints SET timestamp=? WHERE timestamp IS NULL", (str(datetime.now()),))
+
+conn.commit()
     existing = pd.read_sql_query("SELECT COUNT(*) as cnt FROM complaints", conn)
     if existing["cnt"][0] >= 50:
         return
