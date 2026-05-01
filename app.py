@@ -20,19 +20,13 @@ st.markdown("""
     padding-top: 1rem !important;
 }
 
-/* BACKGROUND IMAGE (FIXED) */
+/* BACKGROUND IMAGE */
 [data-testid="stAppViewContainer"] {
-    background: url("https://images.unsplash.com/photo-1605902711622-cfb43c44367f") no-repeat center center fixed;
+    background: linear-gradient(rgba(10,35,70,0.6), rgba(10,35,70,0.6)),
+                url("https://images.unsplash.com/photo-1605902711622-cfb43c44367f");
     background-size: cover;
-}
-
-/* DARK OVERLAY */
-[data-testid="stAppViewContainer"]::before {
-    content: "";
-    position: fixed;
-    inset: 0;
-    background: rgba(10, 35, 70, 0.6);
-    z-index: 0;
+    background-position: center;
+    background-attachment: fixed;
 }
 
 /* CENTER COLUMN ONLY (THIS FIXES DOUBLE CARD) */
