@@ -258,6 +258,35 @@ def login():
 if not st.session_state.logged_in:
     login()
     st.stop()
+    
+    # 🎨 BACKGROUND AFTER LOGIN (SAFE - NO UI BREAK)
+st.markdown("""
+<style>
+
+/* MAIN APP BACKGROUND */
+.stApp {
+    background: linear-gradient(rgba(10,35,70,0.7), rgba(10,35,70,0.7)),
+                url("https://images.unsplash.com/photo-1523292562811-8fa7962a78c8");
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+}
+
+/* REMOVE WHITE CONTAINERS */
+[data-testid="stAppViewContainer"] {
+    background: transparent;
+}
+
+/* KEEP CONTENT READABLE */
+section.main > div {
+    background: rgba(255,255,255,0.05);
+    backdrop-filter: blur(6px);
+    padding: 15px;
+    border-radius: 10px;
+}
+
+</style>
+""", unsafe_allow_html=True)
 
 # -------------------- SIDEBAR --------------------
 st.sidebar.title("📊 Smart Dashboard")
