@@ -28,7 +28,7 @@ html, body, .stApp {
 /* MAIN BACKGROUND (FIXED + CLEAN) */
 .stApp {
     background: linear-gradient(rgba(10,35,70,0.55), rgba(10,35,70,0.55)),
-                url("https://images.unsplash.com/photo-1507525428034-b723cf961d3e");
+                url("https://images.unsplash.com/photo-1523292562811-8fa7962a78c8?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D");
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
@@ -38,7 +38,7 @@ html, body, .stApp {
 /* 🔥 BACKUP (ADD THIS JUST BELOW) */
 [data-testid="stAppViewContainer"] {
     background: linear-gradient(rgba(10,35,70,0.55), rgba(10,35,70,0.55)),
-                url("https://images.unsplash.com/photo-1507525428034-b723cf961d3e");
+                url("https://images.unsplash.com/photo-1523292562811-8fa7962a78c8?q=80&w=1170&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D");
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
