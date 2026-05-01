@@ -12,6 +12,7 @@ import uuid
 
 st.set_page_config(page_title="Smart Complaint System", layout="wide")
 # -------------------- GLOBAL LOGIN UI STYLE --------------------
+if not st.session_state.get("logged_in", False):
 st.markdown("""
 <style>
 
@@ -460,6 +461,7 @@ def chatbot(msg):
     return "📌 Please submit complaint in Complaint tab."
 
 # -------------------- UI --------------------
+st.markdown("<div style='margin-top:20px'></div>", unsafe_allow_html=True)
 st.title("🏛️ Smart Municipal Complaint System")
 
 tabs = st.tabs([
