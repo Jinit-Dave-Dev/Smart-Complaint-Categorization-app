@@ -342,6 +342,31 @@ def seed_data():
     
 seed_data()
 
+# 🔥 FIX OLD DATA (ADD HERE EXACTLY)
+c.execute("""
+UPDATE complaints SET 
+priority = CASE 
+    WHEN complaint LIKE '%danger%' OR complaint LIKE '%accident%' THEN '🔴 HIGH'
+    ELSE '🟡 MEDIUM'
+END
+""")
+
+c.execute("""
+UPDATE complaints SET 
+department = CASE 
+    WHEN category = 'Road' THEN 'Public Works'
+    WHEN category = 'Water' THEN 'Water Dept'
+    WHEN category = 'Garbage' THEN 'Sanitation'
+    WHEN category = 'Electricity' THEN 'Electric Dept'
+    ELSE 'General'
+END
+""")
+
+c.execute("UPDATE complaints SET status='Resolved' WHERE status IS NULL OR status=''")
+c.execute("UPDATE complaints SET timestamp=? WHERE timestamp IS NULL OR timestamp=''", (str(datetime.now()),))
+
+conn.commit()
+
 # -------------------- HELPERS --------------------
 def get_category(text):
     t = re.sub(r'[^a-zA-Z ]', ' ', str(text).lower())
