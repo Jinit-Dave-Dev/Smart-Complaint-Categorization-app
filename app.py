@@ -306,38 +306,38 @@ def seed_data():
         ("user50", "Government office staff not responding to complaints.")
     ]
 
-    for user, text in sample_data:
-        X = vectorizer.transform([text])
-        pred = model.predict(X)
-        prediction = le.inverse_transform(pred)[0]
+for user, text in sample_data:
 
-        category = get_category(text)
-        department = get_department(category)
-        priority = get_priority(text)
+    X = vectorizer.transform([text])
+    pred = model.predict(X)
+    prediction = le.inverse_transform(pred)[0]
 
-        confidence = str(round(model.predict_proba(X).max() * 100, 2))
+    category = get_category(text)
+    department = get_department(category)
+    priority = get_priority(text)
+    status = "Resolved"
 
-        tracking_id = str(uuid.uuid4())[:8]
-        timestamp = str(datetime.now())
+    confidence = str(round(model.predict_proba(X).max() * 100, 2))
+    timestamp = str(datetime.now())
 
-        c.execute("""
-        INSERT INTO complaints (
-            id, user, complaint, prediction, category, confidence,
-            priority, status, department, timestamp
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            tracking_id,
-            user,
-            text,
-            prediction,
-            category,
-            confidence,
-            priority,
-            "Pending",
-            department,
-            timestamp
-        ))
-
+    c.execute("""
+    INSERT INTO complaints (
+        id, user, complaint, prediction, category, confidence,
+        priority, status, department, timestamp
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    """, (
+        str(uuid.uuid4())[:8],
+        user,
+        text,
+        prediction,
+        category,
+        confidence,
+        priority,
+        status,
+        department,
+        timestamp
+    ))
+    
     conn.commit()
     
 seed_data()
