@@ -46,13 +46,13 @@ html, body, .stApp {
 }
 
 /* CENTER COLUMN ONLY (THIS FIXES DOUBLE CARD) */
-div[data-testid="stHorizontalBlock"] > div:nth-child(2) {
+{
     display: flex;
     justify-content: center;
 }
 
 /* ACTUAL CARD */
-div[data-testid="stHorizontalBlock"] > div:nth-child(2) > div {
+{
     background: rgba(255,255,255,0.08);
     backdrop-filter: blur(20px);
     padding: 35px;
@@ -216,10 +216,12 @@ def login():
 
     with col2:
 
-        st.markdown(
-            '<div class="title">🏛️ Smart Government Complaint Portal</div>',
-            unsafe_allow_html=True
-        )
+    st.markdown('<div class="login-card">', unsafe_allow_html=True)
+
+    st.markdown(
+        '<div class="title">🏛️ Smart Government Complaint Portal</div>',
+        unsafe_allow_html=True
+    )
 
         tab1, tab2 = st.tabs(["🔐 Login", "📝 Register"])
 
@@ -665,7 +667,7 @@ with tabs[2]:
         # ================= AGING =================
         st.markdown("### ⏳ Complaint Aging")
         
-        fig_age, ax_age = plt.subplots()
+        fig_age, ax_age = plt.subplots(figsize=(4,2.5))
         
         if total:
             filtered["age"] = filtered["timestamp"].apply(get_age_label)
