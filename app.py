@@ -27,20 +27,18 @@ html, body, .stApp {
 
 /* MAIN BACKGROUND (FIXED + CLEAN) */
 .stApp {
-    background: 
-        linear-gradient(rgba(10,35,70,0.35), rgba(10,35,70,0.35)),
-        url("https://images.unsplash.com/photo-1581093588401-22b0c1e3a1c5?auto=format&fit=crop&w=1920&q=80");
+    background: linear-gradient(rgba(10,35,70,0.55), rgba(10,35,70,0.55)),
+                url("https://images.unsplash.com/photo-1507525428034-b723cf961d3e");
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
     background-attachment: fixed;
 }
 
-/* BACKUP (VERY IMPORTANT) */
+/* 🔥 BACKUP (ADD THIS JUST BELOW) */
 [data-testid="stAppViewContainer"] {
-    background: 
-        linear-gradient(rgba(10,35,70,0.35), rgba(10,35,70,0.35)),
-        url("https://images.unsplash.com/photo-1581093588401-22b0c1e3a1c5?auto=format&fit=crop&w=1920&q=80");
+    background: linear-gradient(rgba(10,35,70,0.55), rgba(10,35,70,0.55)),
+                url("https://images.unsplash.com/photo-1507525428034-b723cf961d3e");
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
