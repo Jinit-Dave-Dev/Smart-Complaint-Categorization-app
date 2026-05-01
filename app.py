@@ -15,7 +15,12 @@ st.set_page_config(page_title="Smart Complaint System", layout="wide")
 st.markdown("""
 <style>
 
-/* FULL BACKGROUND */
+/* REMOVE DEFAULT TOP SPACE */
+.block-container {
+    padding-top: 1rem !important;
+}
+
+/* BACKGROUND IMAGE (FIXED) */
 [data-testid="stAppViewContainer"] {
     background: url("https://images.unsplash.com/photo-1605902711622-cfb43c44367f") no-repeat center center fixed;
     background-size: cover;
@@ -27,24 +32,24 @@ st.markdown("""
     position: fixed;
     inset: 0;
     background: rgba(10, 35, 70, 0.6);
+    z-index: 0;
 }
 
-/* CENTER EVERYTHING */
-.main > div {
+/* CENTER COLUMN ONLY (THIS FIXES DOUBLE CARD) */
+div[data-testid="stHorizontalBlock"] > div:nth-child(2) {
     display: flex;
     justify-content: center;
-    align-items: center;
-    height: 90vh;
 }
 
-/* CARD (THIS IS THE FIX) */
-[data-testid="stVerticalBlock"] > div {
+/* ACTUAL CARD */
+div[data-testid="stHorizontalBlock"] > div:nth-child(2) > div {
     background: rgba(255,255,255,0.08);
     backdrop-filter: blur(20px);
-    padding: 40px;
+    padding: 35px;
     border-radius: 18px;
     box-shadow: 0 10px 40px rgba(0,0,0,0.4);
     width: 420px;
+    margin-top: 8vh;
 }
 
 /* TITLE */
@@ -112,7 +117,9 @@ if "user" not in st.session_state:
 # -------------------- LOGIN --------------------
 def login():
 
-    with st.container():
+    col1, col2, col3 = st.columns([1, 1.2, 1])
+
+    with col2:
 
         st.markdown(
             '<div class="title">🏛️ Smart Government Complaint Portal</div>',
@@ -126,7 +133,7 @@ def login():
             u = st.text_input("Username", key="login_user")
             p = st.text_input("Password", type="password", key="login_pass")
 
-            if st.button("Login"):
+            if st.button("Login", use_container_width=True):
                 c.execute("SELECT * FROM users WHERE username=? AND password=?", (u, p))
                 if c.fetchone():
                     st.session_state.logged_in = True
@@ -140,7 +147,7 @@ def login():
             ru = st.text_input("New Username", key="reg_user")
             rp = st.text_input("New Password", type="password", key="reg_pass")
 
-            if st.button("Register"):
+            if st.button("Register", use_container_width=True):
                 if ru and rp:
                     c.execute("INSERT INTO users VALUES (?,?)", (ru, rp))
                     conn.commit()
