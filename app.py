@@ -311,7 +311,7 @@ def seed_data():
         ("user50","Government office staff not responding to complaints.")
     ]
     
-    for user, text in sample_data:
+  for user, text in sample_data:
     X = vectorizer.transform([text])
     pred = model.predict(X)
     prediction = le.inverse_transform(pred)[0]
