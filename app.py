@@ -26,10 +26,21 @@ html, body, .stApp {
 }
 
 .stApp {
-    background: linear-gradient(rgba(10,35,70,0.55), rgba(10,35,70,0.55)),
-                url("https://picsum.photos/1920/1080")
+    background: linear-gradient(rgba(10,35,70,0.35), rgba(10,35,70,0.35)),
+                url("https://images.unsplash.com/photo-1507525428034-b723cf961d3e");
     background-size: cover;
     background-position: center;
+    background-repeat: no-repeat;
+    background-attachment: fixed;
+}
+
+/* 🔥 BACKUP (ADD THIS JUST BELOW) */
+[data-testid="stAppViewContainer"] {
+    background: linear-gradient(rgba(10,35,70,0.55), rgba(10,35,70,0.55)),
+                url("https://images.unsplash.com/photo-1507525428034-b723cf961d3e");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
     background-attachment: fixed;
 }
 
@@ -123,6 +134,15 @@ button[role="tab"]:hover {
     background: linear-gradient(135deg, #1f4e79, #4da6ff);
     color: white;
     transform: scale(1.03);
+}
+
+.stApp {
+    animation: fadeIn 0.8s ease-in;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 </style>
