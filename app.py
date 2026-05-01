@@ -20,24 +20,27 @@ st.markdown("""
     padding-top: 1rem !important;
 }
 
-/* FORCE BACKGROUND ON ROOT */
+/* FORCE FULL HEIGHT */
 html, body, .stApp {
     height: 100%;
 }
 
+/* MAIN BACKGROUND (FIXED + CLEAN) */
 .stApp {
-    background: linear-gradient(rgba(10,35,70,0.35), rgba(10,35,70,0.35)),
-                url("https://images.unsplash.com/photo-1581093588401-22b0c1e3a1c5");
+    background: 
+        linear-gradient(rgba(10,35,70,0.35), rgba(10,35,70,0.35)),
+        url("https://images.unsplash.com/photo-1581093588401-22b0c1e3a1c5?auto=format&fit=crop&w=1920&q=80");
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
     background-attachment: fixed;
 }
 
-/* 🔥 BACKUP (ADD THIS JUST BELOW) */
+/* BACKUP (VERY IMPORTANT) */
 [data-testid="stAppViewContainer"] {
-    background: linear-gradient(rgba(10,35,70,0.55), rgba(10,35,70,0.55)),
-                url("https://images.unsplash.com/photo-1581093588401-22b0c1e3a1c5");
+    background: 
+        linear-gradient(rgba(10,35,70,0.35), rgba(10,35,70,0.35)),
+        url("https://images.unsplash.com/photo-1581093588401-22b0c1e3a1c5?auto=format&fit=crop&w=1920&q=80");
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
