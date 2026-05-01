@@ -28,7 +28,8 @@ html, body, .stApp {
 .stApp {
     background: linear-gradient(rgba(10,35,70,0.35), rgba(10,35,70,0.35)),
                 url("https://images.unsplash.com/photo-1507525428034-b723cf961d3e");
-    background-size: cover;
+    background-size: contain;
+    background-color: #0a2346; /* fallback color */
     background-position: center;
     background-repeat: no-repeat;
     background-attachment: fixed;
