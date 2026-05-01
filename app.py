@@ -45,7 +45,8 @@ html, body, .stApp {
     background-attachment: fixed;
 }
 
-.login-card {
+/* TARGET CENTER COLUMN CARD (LOGIN ONLY) */
+div[data-testid="stHorizontalBlock"] > div:nth-child(2) > div {
     background: rgba(255,255,255,0.08);
     backdrop-filter: blur(20px);
     padding: 35px;
