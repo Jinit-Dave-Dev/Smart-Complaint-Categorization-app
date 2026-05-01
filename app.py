@@ -27,7 +27,7 @@ html, body, .stApp {
 
 .stApp {
     background: linear-gradient(rgba(10,35,70,0.35), rgba(10,35,70,0.35)),
-                url("https://img.magnific.com/premium-photo/digital-government-services-e-governance-concept_1101054-86958.jpg?w=360");
+                url("https://img.magnific.com/premium-photo/digital-government-services-e-governance-concept_1101054-86958.jpg");
     background-size: contain;
     background-color: #0a2346; /* fallback color */
     background-position: center;
