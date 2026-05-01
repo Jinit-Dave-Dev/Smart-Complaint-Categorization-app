@@ -178,6 +178,31 @@ add_column("timestamp", "TEXT")
 c.execute("CREATE TABLE IF NOT EXISTS users (username TEXT, password TEXT)")
 conn.commit()
 
+# 🔥 AUTO STATUS UPDATE (REAL WORKFLOW)
+rows = c.execute("SELECT id, timestamp, status FROM complaints").fetchall()
+
+for r in rows:
+    cid, ts, status = r
+
+    try:
+        created = datetime.fromisoformat(ts)
+        diff = datetime.now() - created
+
+        if diff.total_seconds() > 180:   # 3 min → Resolved
+            new_status = "Resolved"
+        elif diff.total_seconds() > 60:  # 1 min → In Progress
+            new_status = "In Progress"
+        else:
+            new_status = "Pending"
+
+        if status != new_status:
+            c.execute("UPDATE complaints SET status=? WHERE id=?", (new_status, cid))
+
+    except:
+        pass
+
+conn.commit()
+
 # -------------------- SESSION --------------------
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -396,6 +421,19 @@ def get_priority(text):
         return "🔴 HIGH"
     return "🟡 MEDIUM"
 
+def get_age_label(timestamp):
+    try:
+        created = datetime.fromisoformat(timestamp)
+        diff = datetime.now() - created
+
+        if diff.days <= 1:
+            return "🟢 New"
+        elif diff.days <= 3:
+            return "🟡 Moderate"
+        else:
+            return "🔴 Old"
+    except:
+        return "Unknown"
 # -------------------- CHATBOT --------------------
 def chatbot(msg):
     m = msg.lower()
@@ -472,9 +510,12 @@ with tabs[0]:
         st.success(f"Complaint Registered | ID: {tracking_id}")
 
     data = pd.read_sql_query("SELECT * FROM complaints", conn)
+    data["age"] = data["timestamp"].apply(get_age_label)
     if not data.empty:
         data.fillna("N/A", inplace=True)
-        st.dataframe(data.iloc[::-1], use_container_width=True)
+        st.dataframe(data[[
+    "id","user","category","priority","status","age","department"
+]].iloc[::-1], use_container_width=True)
 
 # ================== DASHBOARD ==================
 with tabs[1]:
@@ -620,6 +661,19 @@ with tabs[2]:
                 ax4.text(0.5, 0.5, "No Data", ha='center')
 
             st.pyplot(fig4)
+
+        # ================= AGING =================
+st.markdown("### ⏳ Complaint Aging")
+
+fig_age, ax_age = plt.subplots()
+
+if total:
+    filtered["age"] = filtered["timestamp"].apply(get_age_label)
+    filtered["age"].value_counts().plot.bar(ax=ax_age)
+else:
+    ax_age.text(0.5, 0.5, "No Data", ha='center')
+
+st.pyplot(fig_age)
 
         # -------- TABLE --------
         st.markdown("### 📋 Filtered Data")
