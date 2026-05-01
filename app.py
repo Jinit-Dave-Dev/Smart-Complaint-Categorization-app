@@ -310,8 +310,8 @@ def seed_data():
         ("user49","Lack of security in residential area."),
         ("user50","Government office staff not responding to complaints.")
     ]
-
- for user, text in sample_data:
+    
+  for user, text in sample_data:
     X = vectorizer.transform([text])
     pred = model.predict(X)
     prediction = le.inverse_transform(pred)[0]
@@ -342,7 +342,6 @@ def seed_data():
         department,
         timestamp
     ))
-
     conn.commit()
     
 seed_data()
