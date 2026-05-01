@@ -15,33 +15,34 @@ st.set_page_config(page_title="Smart Complaint System", layout="wide")
 st.markdown("""
 <style>
 
-/* REMOVE DEFAULT SPACE */
+/* REMOVE TOP GAP */
 .block-container {
-    padding-top: 2rem !important;
+    padding-top: 1rem !important;
 }
 
-/* BACKGROUND */
+/* BACKGROUND IMAGE */
 [data-testid="stAppViewContainer"] {
     background: url("https://images.unsplash.com/photo-1605902711622-cfb43c44367f") no-repeat center center fixed;
     background-size: cover;
 }
 
-/* OVERLAY (FIXED) */
+/* DARK OVERLAY */
 [data-testid="stAppViewContainer"]::before {
     content: "";
     position: fixed;
     inset: 0;
     background: rgba(10, 35, 70, 0.6);
-    z-index: -1;  /* 👈 IMPORTANT FIX */
+    z-index: 0;
 }
 
-/* CENTER COLUMN LOOK LIKE CARD */
-.center-card {
+/* CENTER COLUMN = CARD */
+[data-testid="column"]:nth-child(2) {
     background: rgba(255,255,255,0.08);
     backdrop-filter: blur(20px);
     padding: 35px;
     border-radius: 18px;
     box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+    margin-top: 5vh;
 }
 
 /* TITLE */
@@ -66,14 +67,13 @@ st.markdown("""
     color: white;
 }
 
-/* REMOVE TAB WHITE BG */
+/* REMOVE TAB WHITE BOX */
 [data-baseweb="tab-panel"] {
     background: transparent !important;
 }
 
 </style>
 """, unsafe_allow_html=True)
-
 
 # -------------------- DB --------------------
 conn = sqlite3.connect("complaints.db", check_same_thread=False)
@@ -117,46 +117,39 @@ def login():
 
     with col2:
 
-        # THIS is the correct way (not markdown div)
-        with st.container():
+        st.markdown(
+            '<div class="title">🏛️ Smart Government Complaint Portal</div>',
+            unsafe_allow_html=True
+        )
 
-            st.markdown('<div class="center-card">', unsafe_allow_html=True)
+        tab1, tab2 = st.tabs(["🔐 Login", "📝 Register"])
 
-            st.markdown(
-                '<div class="title">🏛️ Smart Government Complaint Portal</div>',
-                unsafe_allow_html=True
-            )
+        # LOGIN
+        with tab1:
+            u = st.text_input("Username", key="login_user")
+            p = st.text_input("Password", type="password", key="login_pass")
 
-            tab1, tab2 = st.tabs(["🔐 Login", "📝 Register"])
+            if st.button("Login", use_container_width=True):
+                c.execute("SELECT * FROM users WHERE username=? AND password=?", (u, p))
+                if c.fetchone():
+                    st.session_state.logged_in = True
+                    st.session_state.user = u
+                    st.rerun()
+                else:
+                    st.error("Invalid Credentials")
 
-            # LOGIN
-            with tab1:
-                u = st.text_input("Username", key="login_user")
-                p = st.text_input("Password", type="password", key="login_pass")
+        # REGISTER
+        with tab2:
+            ru = st.text_input("New Username", key="reg_user")
+            rp = st.text_input("New Password", type="password", key="reg_pass")
 
-                if st.button("Login", use_container_width=True):
-                    c.execute("SELECT * FROM users WHERE username=? AND password=?", (u, p))
-                    if c.fetchone():
-                        st.session_state.logged_in = True
-                        st.session_state.user = u
-                        st.rerun()
-                    else:
-                        st.error("Invalid Credentials")
-
-            # REGISTER
-            with tab2:
-                ru = st.text_input("New Username", key="reg_user")
-                rp = st.text_input("New Password", type="password", key="reg_pass")
-
-                if st.button("Register", use_container_width=True):
-                    if ru and rp:
-                        c.execute("INSERT INTO users VALUES (?,?)", (ru, rp))
-                        conn.commit()
-                        st.success("Registered Successfully")
-                    else:
-                        st.warning("Enter all fields")
-
-            st.markdown('</div>', unsafe_allow_html=True)
+            if st.button("Register", use_container_width=True):
+                if ru and rp:
+                    c.execute("INSERT INTO users VALUES (?,?)", (ru, rp))
+                    conn.commit()
+                    st.success("Registered Successfully")
+                else:
+                    st.warning("Enter all fields")
 
 if not st.session_state.logged_in:
     login()
