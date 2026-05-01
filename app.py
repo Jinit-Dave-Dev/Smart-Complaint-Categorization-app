@@ -663,17 +663,17 @@ with tabs[2]:
             st.pyplot(fig4)
 
         # ================= AGING =================
-st.markdown("### ⏳ Complaint Aging")
-
-fig_age, ax_age = plt.subplots()
-
-if total:
-    filtered["age"] = filtered["timestamp"].apply(get_age_label)
-    filtered["age"].value_counts().plot.bar(ax=ax_age)
-else:
-    ax_age.text(0.5, 0.5, "No Data", ha='center')
-
-st.pyplot(fig_age)
+        st.markdown("### ⏳ Complaint Aging")
+        
+        fig_age, ax_age = plt.subplots()
+        
+        if total:
+            filtered["age"] = filtered["timestamp"].apply(get_age_label)
+            filtered["age"].value_counts().plot.bar(ax=ax_age)
+        else:
+            ax_age.text(0.5, 0.5, "No Data", ha='center')
+        
+        st.pyplot(fig_age)
 
         # -------- TABLE --------
         st.markdown("### 📋 Filtered Data")
