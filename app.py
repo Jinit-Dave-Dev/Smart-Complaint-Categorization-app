@@ -15,7 +15,7 @@ st.set_page_config(page_title="Smart Complaint System", layout="wide")
 st.markdown("""
 <style>
 
-/* REMOVE TOP SPACE */
+/* REMOVE DEFAULT SPACE */
 .block-container {
     padding-top: 2rem !important;
 }
@@ -26,19 +26,17 @@ st.markdown("""
     background-size: cover;
 }
 
-/* OVERLAY */
+/* OVERLAY (FIXED) */
 [data-testid="stAppViewContainer"]::before {
     content: "";
     position: fixed;
     inset: 0;
-    background: rgba(10, 35, 70, 0.75);
-    z-index: 0;
+    background: rgba(10, 35, 70, 0.6);
+    z-index: -1;  /* 👈 IMPORTANT FIX */
 }
 
-/* CARD (THIS TIME REAL CARD) */
-.login-card {
-    position: relative;
-    z-index: 2;
+/* CENTER COLUMN LOOK LIKE CARD */
+.center-card {
     background: rgba(255,255,255,0.08);
     backdrop-filter: blur(20px);
     padding: 35px;
@@ -58,12 +56,6 @@ st.markdown("""
 .stTextInput input {
     border-radius: 10px;
     border: 1px solid rgba(255,255,255,0.3);
-    padding: 10px;
-}
-
-.stTextInput input:focus {
-    border: 1px solid #4da6ff;
-    box-shadow: 0 0 8px rgba(77,166,255,0.6);
 }
 
 /* BUTTON */
@@ -125,43 +117,46 @@ def login():
 
     with col2:
 
-        st.markdown('<div class="login-card">', unsafe_allow_html=True)
+        # THIS is the correct way (not markdown div)
+        with st.container():
 
-        st.markdown(
-            '<div class="title">🏛️ Smart Government Complaint Portal</div>',
-            unsafe_allow_html=True
-        )
+            st.markdown('<div class="center-card">', unsafe_allow_html=True)
 
-        tab1, tab2 = st.tabs(["🔐 Login", "📝 Register"])
+            st.markdown(
+                '<div class="title">🏛️ Smart Government Complaint Portal</div>',
+                unsafe_allow_html=True
+            )
 
-        # LOGIN TAB
-        with tab1:
-            u = st.text_input("Username", key="login_user")
-            p = st.text_input("Password", type="password", key="login_pass")
+            tab1, tab2 = st.tabs(["🔐 Login", "📝 Register"])
 
-            if st.button("Login", use_container_width=True):
-                c.execute("SELECT * FROM users WHERE username=? AND password=?", (u, p))
-                if c.fetchone():
-                    st.session_state.logged_in = True
-                    st.session_state.user = u
-                    st.rerun()
-                else:
-                    st.error("Invalid Credentials")
+            # LOGIN
+            with tab1:
+                u = st.text_input("Username", key="login_user")
+                p = st.text_input("Password", type="password", key="login_pass")
 
-        # REGISTER TAB
-        with tab2:
-            ru = st.text_input("New Username", key="reg_user")
-            rp = st.text_input("New Password", type="password", key="reg_pass")
+                if st.button("Login", use_container_width=True):
+                    c.execute("SELECT * FROM users WHERE username=? AND password=?", (u, p))
+                    if c.fetchone():
+                        st.session_state.logged_in = True
+                        st.session_state.user = u
+                        st.rerun()
+                    else:
+                        st.error("Invalid Credentials")
 
-            if st.button("Register", use_container_width=True):
-                if ru and rp:
-                    c.execute("INSERT INTO users VALUES (?,?)", (ru, rp))
-                    conn.commit()
-                    st.success("Registered Successfully")
-                else:
-                    st.warning("Enter all fields")
+            # REGISTER
+            with tab2:
+                ru = st.text_input("New Username", key="reg_user")
+                rp = st.text_input("New Password", type="password", key="reg_pass")
 
-        st.markdown('</div>', unsafe_allow_html=True)
+                if st.button("Register", use_container_width=True):
+                    if ru and rp:
+                        c.execute("INSERT INTO users VALUES (?,?)", (ru, rp))
+                        conn.commit()
+                        st.success("Registered Successfully")
+                    else:
+                        st.warning("Enter all fields")
+
+            st.markdown('</div>', unsafe_allow_html=True)
 
 if not st.session_state.logged_in:
     login()
