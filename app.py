@@ -70,6 +70,25 @@ div[data-testid="stHorizontalBlock"] > div:nth-child(2) > div {
     background: transparent !important;
 }
 
+/* TAB ANIMATION */
+button[role="tab"] {
+    transition: all 0.3s ease !important;
+    border-radius: 8px !important;
+}
+
+/* ACTIVE TAB */
+button[aria-selected="true"] {
+    background: linear-gradient(135deg, #1f4e79, #4da6ff) !important;
+    color: white !important;
+    transform: scale(1.05);
+}
+
+/* HOVER EFFECT */
+button[role="tab"]:hover {
+    transform: scale(1.05);
+    background: rgba(255,255,255,0.1) !important;
+}
+
 </style>
 """, unsafe_allow_html=True)
 
