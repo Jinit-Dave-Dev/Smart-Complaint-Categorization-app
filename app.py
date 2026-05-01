@@ -20,10 +20,14 @@ st.markdown("""
     padding-top: 1rem !important;
 }
 
-/* BACKGROUND IMAGE */
-[data-testid="stAppViewContainer"] {
-    background: linear-gradient(rgba(10,35,70,0.6), rgba(10,35,70,0.6)),
-                url("https://images.unsplash.com/photo-1605902711622-cfb43c44367f");
+/* FORCE BACKGROUND ON ROOT */
+html, body, .stApp {
+    height: 100%;
+}
+
+.stApp {
+    background: linear-gradient(rgba(10,35,70,0.55), rgba(10,35,70,0.55)),
+                url("https://images.unsplash.com/photo-1605902711622-cfb43c44367f?auto=format&fit=crop&w=1920&q=80");
     background-size: cover;
     background-position: center;
     background-attachment: fixed;
@@ -87,6 +91,38 @@ button[aria-selected="true"] {
 button[role="tab"]:hover {
     transform: scale(1.05);
     background: rgba(255,255,255,0.1) !important;
+}
+
+/* INPUT ANIMATION */
+.stTextInput input {
+    border-radius: 10px;
+    transition: all 0.3s ease;
+}
+
+/* INPUT FOCUS GLOW */
+.stTextInput input:focus {
+    border: 1px solid #4da6ff !important;
+    box-shadow: 0 0 10px rgba(77,166,255,0.6);
+    transform: scale(1.02);
+}
+
+/* BUTTON ANIMATION */
+.stButton button {
+    width: 100%;
+    border-radius: 10px;
+    transition: all 0.2s ease;
+}
+
+/* BUTTON CLICK EFFECT */
+.stButton button:active {
+    transform: scale(0.96);
+}
+
+/* BUTTON HOVER */
+.stButton button:hover {
+    background: linear-gradient(135deg, #1f4e79, #4da6ff);
+    color: white;
+    transform: scale(1.03);
 }
 
 </style>
