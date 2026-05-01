@@ -365,7 +365,14 @@ END
 c.execute("UPDATE complaints SET status='Resolved' WHERE status IS NULL OR status=''")
 c.execute("UPDATE complaints SET timestamp=? WHERE timestamp IS NULL OR timestamp=''", (str(datetime.now()),))
 
+rows = c.execute("SELECT rowid FROM complaints WHERE id IS NULL OR id=''").fetchall()
+
+for r in rows:
+    new_id = str(uuid.uuid4())[:8]
+    c.execute("UPDATE complaints SET id=? WHERE rowid=?", (new_id, r[0]))
+
 conn.commit()
+
 
 # -------------------- HELPERS --------------------
 def get_category(text):
