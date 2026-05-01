@@ -45,6 +45,11 @@ html, body, .stApp {
     background-attachment: fixed;
 }
 
+div[data-testid="stHorizontalBlock"] > div:nth-child(2) {
+    display: flex;
+    justify-content: center;
+}
+
 /* TARGET CENTER COLUMN CARD (LOGIN ONLY) */
 div[data-testid="stHorizontalBlock"] > div:nth-child(2) > div {
     background: rgba(255,255,255,0.08);
@@ -211,7 +216,6 @@ def login():
 
     with col2:
 
-        st.markdown('<div class="login-card">', unsafe_allow_html=True)
 
         st.markdown(
             '<div class="title">🏛️ Smart Government Complaint Portal</div>',
@@ -247,7 +251,6 @@ def login():
                 else:
                     st.warning("Enter all fields")
 
-        st.markdown('</div>', unsafe_allow_html=True)  # close div
 if not st.session_state.logged_in:
     login()
     st.stop()
