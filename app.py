@@ -15,12 +15,7 @@ st.set_page_config(page_title="Smart Complaint System", layout="wide")
 st.markdown("""
 <style>
 
-/* REMOVE TOP GAP */
-.block-container {
-    padding-top: 1rem !important;
-}
-
-/* BACKGROUND IMAGE */
+/* FULL BACKGROUND */
 [data-testid="stAppViewContainer"] {
     background: url("https://images.unsplash.com/photo-1605902711622-cfb43c44367f") no-repeat center center fixed;
     background-size: cover;
@@ -32,42 +27,46 @@ st.markdown("""
     position: fixed;
     inset: 0;
     background: rgba(10, 35, 70, 0.6);
-    z-index: 0;
 }
 
-/* CENTER COLUMN = CARD */
-[data-testid="column"]:nth-child(2) {
+/* CENTER EVERYTHING */
+.main > div {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 90vh;
+}
+
+/* CARD (THIS IS THE FIX) */
+[data-testid="stVerticalBlock"] > div {
     background: rgba(255,255,255,0.08);
     backdrop-filter: blur(20px);
-    padding: 35px;
+    padding: 40px;
     border-radius: 18px;
     box-shadow: 0 10px 40px rgba(0,0,0,0.4);
-    margin-top: 5vh;
+    width: 420px;
 }
 
 /* TITLE */
 .title {
     text-align: center;
-    font-size: 24px;
+    font-size: 26px;
     color: white;
-    margin-bottom: 15px;
+    margin-bottom: 20px;
 }
 
 /* INPUT */
 .stTextInput input {
     border-radius: 10px;
-    border: 1px solid rgba(255,255,255,0.3);
 }
 
 /* BUTTON */
 .stButton button {
     width: 100%;
     border-radius: 10px;
-    background: linear-gradient(135deg, #1f4e79, #4da6ff);
-    color: white;
 }
 
-/* REMOVE TAB WHITE BOX */
+/* REMOVE TAB WHITE BG */
 [data-baseweb="tab-panel"] {
     background: transparent !important;
 }
@@ -113,9 +112,7 @@ if "user" not in st.session_state:
 # -------------------- LOGIN --------------------
 def login():
 
-    col1, col2, col3 = st.columns([1, 1.2, 1])
-
-    with col2:
+    with st.container():
 
         st.markdown(
             '<div class="title">🏛️ Smart Government Complaint Portal</div>',
@@ -129,7 +126,7 @@ def login():
             u = st.text_input("Username", key="login_user")
             p = st.text_input("Password", type="password", key="login_pass")
 
-            if st.button("Login", use_container_width=True):
+            if st.button("Login"):
                 c.execute("SELECT * FROM users WHERE username=? AND password=?", (u, p))
                 if c.fetchone():
                     st.session_state.logged_in = True
@@ -143,7 +140,7 @@ def login():
             ru = st.text_input("New Username", key="reg_user")
             rp = st.text_input("New Password", type="password", key="reg_pass")
 
-            if st.button("Register", use_container_width=True):
+            if st.button("Register"):
                 if ru and rp:
                     c.execute("INSERT INTO users VALUES (?,?)", (ru, rp))
                     conn.commit()
