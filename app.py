@@ -27,7 +27,7 @@ html, body, .stApp {
 
 .stApp {
     background: linear-gradient(rgba(10,35,70,0.55), rgba(10,35,70,0.55)),
-                url("https://images.unsplash.com/photo-1605902711622-cfb43c44367f?auto=format&fit=crop&w=1920&q=80");
+                url("https://picsum.photos/1920/1080")
     background-size: cover;
     background-position: center;
     background-attachment: fixed;
