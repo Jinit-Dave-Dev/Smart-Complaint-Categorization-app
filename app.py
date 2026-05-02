@@ -572,6 +572,21 @@ with tabs[1]:
         col1.metric("Total", len(saved))
         col2.metric("Users", saved["user"].nunique())
         col3.metric("Top Category", saved["category"].value_counts().idxmax())
+        # 🔥 DELETE COMPLAINT
+    st.markdown("### 🗑️ Delete Complaint")
+
+col1, col2 = st.columns([3,1])
+
+delete_id = col1.text_input("Enter Complaint ID to delete")
+
+if col2.button("Delete"):
+    if delete_id.strip():
+        c.execute("DELETE FROM complaints WHERE id=?", (delete_id,))
+        conn.commit()
+        st.success(f"Deleted complaint with ID: {delete_id}")
+        st.rerun()
+    else:
+        st.warning("Enter valid ID")
 
         st.dataframe(saved.iloc[::-1], use_container_width=True)
         
