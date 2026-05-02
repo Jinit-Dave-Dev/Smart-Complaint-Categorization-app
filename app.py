@@ -561,18 +561,31 @@ with tabs[1]:
     saved = pd.read_sql_query("SELECT * FROM complaints", conn)
 
     if not saved.empty:
-        saved.fillna({
-            "priority": "🟡 MEDIUM",
-            "status": "Pending",
-            "department": "General",
-            "timestamp": str(datetime.now())
-        }, inplace=True)
 
+        # ✅ METRICS
         col1, col2, col3 = st.columns(3)
         col1.metric("Total", len(saved))
         col2.metric("Users", saved["user"].nunique())
         col3.metric("Top Category", saved["category"].value_counts().idxmax())
 
+        # ✅ DELETE SECTION (PUT HERE)
+        st.markdown("### 🗑️ Delete Complaint")
+
+        col1, col2 = st.columns([3,1])
+
+        delete_id = col1.text_input("Enter Complaint ID to delete", key="delete_box")
+
+        if col2.button("Delete", key="delete_btn"):
+            if delete_id.strip():
+                c.execute("DELETE FROM complaints WHERE id=?", (delete_id,))
+                conn.commit()
+                st.success(f"Deleted complaint with ID: {delete_id}")
+                st.rerun()
+            else:
+                st.warning("Enter valid ID")
+
+        # ✅ TABLE (MUST BE LAST)
+        st.markdown("### 📋 All Complaints")
         st.dataframe(saved.iloc[::-1], use_container_width=True)
         
 # ================== ANALYTICS ==================
