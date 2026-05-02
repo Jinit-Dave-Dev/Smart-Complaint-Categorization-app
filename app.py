@@ -154,7 +154,13 @@ button[role="tab"]:hover {
 """, unsafe_allow_html=True)
 
 # -------------------- DB --------------------
-conn = sqlite3.connect("complaints.db", check_same_thread=False)
+DB_PATH = "/mount/data/complaints.db"
+
+# fallback for local run (important)
+if not os.path.exists("/mount/data"):
+    DB_PATH = "complaints.db"
+
+conn = sqlite3.connect(DB_PATH, check_same_thread=False)
 c = conn.cursor()
 
 c.execute("""
