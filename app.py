@@ -436,8 +436,8 @@ def seed_data():
     conn.commit()
 
 if "seeded" not in st.session_state:
-seed_data()
-st.session_state.seeded = True
+  seed_data()
+  st.session_state.seeded = True
 
 # 🔥 FIX OLD DATA (ADD HERE EXACTLY)
 c.execute("""
