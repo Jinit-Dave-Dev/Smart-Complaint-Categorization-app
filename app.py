@@ -303,6 +303,42 @@ if st.sidebar.button("Logout"):
 vectorizer = pickle.load(open("tfidf_vectorizer.pkl", "rb"))
 le = pickle.load(open("label_encoder.pkl", "rb"))
 model = pickle.load(open("logistic_regression_model.pkl", "rb"))
+# -------------------- HELPERS --------------------
+def get_category(text):
+    t = re.sub(r'[^a-zA-Z ]', ' ', str(text).lower())
+    if "road" in t: return "Road"
+    if "water" in t: return "Water"
+    if "garbage" in t: return "Garbage"
+    if "electric" in t: return "Electricity"
+    return "Other"
+
+def get_department(cat):
+    return {
+        "Road": "Public Works",
+        "Water": "Water Dept",
+        "Garbage": "Sanitation",
+        "Electricity": "Electric Dept"
+    }.get(cat, "General")
+
+def get_priority(text):
+    if any(x in text.lower() for x in ["fire","danger","accident"]):
+        return "🔴 HIGH"
+    return "🟡 MEDIUM"
+
+def get_age_label(timestamp):
+    try:
+        created = datetime.fromisoformat(timestamp)
+        diff = datetime.now() - created
+
+        if diff.days <= 1:
+            return "🟢 New"
+        elif diff.days <= 3:
+            return "🟡 Moderate"
+        else:
+            return "🔴 Old"
+    except:
+        return "Unknown"
+        
 def seed_data():
     existing = pd.read_sql_query("SELECT COUNT(*) as cnt FROM complaints", conn)
     if existing["cnt"][0] >= 50:
@@ -398,8 +434,10 @@ def seed_data():
         ))
 
     conn.commit()
-    
+
+if "seeded" not in st.session_state:
 seed_data()
+st.session_state.seeded = True
 
 # 🔥 FIX OLD DATA (ADD HERE EXACTLY)
 c.execute("""
@@ -433,41 +471,6 @@ for r in rows:
 conn.commit()
 
 
-# -------------------- HELPERS --------------------
-def get_category(text):
-    t = re.sub(r'[^a-zA-Z ]', ' ', str(text).lower())
-    if "road" in t: return "Road"
-    if "water" in t: return "Water"
-    if "garbage" in t: return "Garbage"
-    if "electric" in t: return "Electricity"
-    return "Other"
-
-def get_department(cat):
-    return {
-        "Road": "Public Works",
-        "Water": "Water Dept",
-        "Garbage": "Sanitation",
-        "Electricity": "Electric Dept"
-    }.get(cat, "General")
-
-def get_priority(text):
-    if any(x in text.lower() for x in ["fire","danger","accident"]):
-        return "🔴 HIGH"
-    return "🟡 MEDIUM"
-
-def get_age_label(timestamp):
-    try:
-        created = datetime.fromisoformat(timestamp)
-        diff = datetime.now() - created
-
-        if diff.days <= 1:
-            return "🟢 New"
-        elif diff.days <= 3:
-            return "🟡 Moderate"
-        else:
-            return "🔴 Old"
-    except:
-        return "Unknown"
 # -------------------- CHATBOT --------------------
 def chatbot(msg):
     m = msg.lower()
