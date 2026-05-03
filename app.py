@@ -279,17 +279,21 @@ def login():
                     st.error("Passwords do not match")
         
                 else:
-                    try:
+                    # 🔍 CHECK IF USERNAME EXISTS FIRST
+                    c.execute("SELECT * FROM users WHERE username=?", (username,))
+                    existing_user = c.fetchone()
+                
+                    if existing_user:
+                        st.error("Username already exists ❌")
+                
+                    else:
                         c.execute("""
                         INSERT INTO users (name, username, email, address, gender, password)
                         VALUES (?, ?, ?, ?, ?, ?)
                         """, (name, username, email, address, gender, password))
-        
+                
                         conn.commit()
                         st.success("Registered Successfully ✅")
-        
-                    except:
-                        st.error("Username already exists")
 
 if not st.session_state.logged_in:
     login()
