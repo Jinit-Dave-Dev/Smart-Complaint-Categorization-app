@@ -260,36 +260,36 @@ def login():
         # REGISTER
         with tab2:
     
-        name = st.text_input("Full Name", key="reg_name")
-        username = st.text_input("Username", key="reg_user")
-        email = st.text_input("Email", key="reg_email")
-        address = st.text_area("Address", key="reg_address")
-        gender = st.selectbox("Gender", ["Male", "Female", "Other"], key="reg_gender")
+            name = st.text_input("Full Name", key="reg_name")
+            username = st.text_input("Username", key="reg_user")
+            email = st.text_input("Email", key="reg_email")
+            address = st.text_area("Address", key="reg_address")
+            gender = st.selectbox("Gender", ["Male", "Female", "Other"], key="reg_gender")
     
-        password = st.text_input("Password", type="password", key="reg_pass")
-        confirm_password = st.text_input("Confirm Password", type="password", key="reg_cpass")
-    
-        if st.button("Register", use_container_width=True):
-    
-            # ✅ VALIDATIONS
-            if not all([name, username, email, address, gender, password, confirm_password]):
-                st.warning("Please fill all fields")
-    
-            elif password != confirm_password:
-                st.error("Passwords do not match")
-    
-            else:
-                try:
-                    c.execute("""
-                    INSERT INTO users (name, username, email, address, gender, password)
-                    VALUES (?, ?, ?, ?, ?, ?)
-                    """, (name, username, email, address, gender, password))
-    
-                    conn.commit()
-                    st.success("Registered Successfully ✅")
-    
-                except:
-                    st.error("Username already exists")
+            password = st.text_input("Password", type="password", key="reg_pass")
+            confirm_password = st.text_input("Confirm Password", type="password", key="reg_cpass")
+        
+            if st.button("Register", use_container_width=True):
+        
+                # ✅ VALIDATIONS
+                if not all([name, username, email, address, gender, password, confirm_password]):
+                    st.warning("Please fill all fields")
+        
+                elif password != confirm_password:
+                    st.error("Passwords do not match")
+        
+                else:
+                    try:
+                        c.execute("""
+                        INSERT INTO users (name, username, email, address, gender, password)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                        """, (name, username, email, address, gender, password))
+        
+                        conn.commit()
+                        st.success("Registered Successfully ✅")
+        
+                    except:
+                        st.error("Username already exists")
 
 if not st.session_state.logged_in:
     login()
