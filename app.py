@@ -185,7 +185,16 @@ add_column("status", "TEXT")
 add_column("department", "TEXT")
 add_column("timestamp", "TEXT")
 
-c.execute("CREATE TABLE IF NOT EXISTS users (username TEXT, password TEXT)")
+c.execute("""
+CREATE TABLE IF NOT EXISTS users (
+    name TEXT,
+    username TEXT PRIMARY KEY,
+    email TEXT,
+    address TEXT,
+    gender TEXT,
+    password TEXT
+)
+""")
 conn.commit()
 
 # 🔥 AUTO STATUS UPDATE (REAL WORKFLOW)
@@ -250,16 +259,37 @@ def login():
 
         # REGISTER
         with tab2:
-            ru = st.text_input("New Username", key="reg_user")
-            rp = st.text_input("New Password", type="password", key="reg_pass")
-
-            if st.button("Register", use_container_width=True):
-                if ru and rp:
-                    c.execute("INSERT INTO users VALUES (?,?)", (ru, rp))
+    
+        name = st.text_input("Full Name", key="reg_name")
+        username = st.text_input("Username", key="reg_user")
+        email = st.text_input("Email", key="reg_email")
+        address = st.text_area("Address", key="reg_address")
+        gender = st.selectbox("Gender", ["Male", "Female", "Other"], key="reg_gender")
+    
+        password = st.text_input("Password", type="password", key="reg_pass")
+        confirm_password = st.text_input("Confirm Password", type="password", key="reg_cpass")
+    
+        if st.button("Register", use_container_width=True):
+    
+            # ✅ VALIDATIONS
+            if not all([name, username, email, address, gender, password, confirm_password]):
+                st.warning("Please fill all fields")
+    
+            elif password != confirm_password:
+                st.error("Passwords do not match")
+    
+            else:
+                try:
+                    c.execute("""
+                    INSERT INTO users (name, username, email, address, gender, password)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """, (name, username, email, address, gender, password))
+    
                     conn.commit()
-                    st.success("Registered Successfully")
-                else:
-                    st.warning("Enter all fields")
+                    st.success("Registered Successfully ✅")
+    
+                except:
+                    st.error("Username already exists")
 
 if not st.session_state.logged_in:
     login()
