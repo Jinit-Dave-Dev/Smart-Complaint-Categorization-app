@@ -162,7 +162,23 @@ if not os.path.exists("/mount/data"):
 
 conn = sqlite3.connect(DB_PATH, check_same_thread=False)
 c = conn.cursor()
+# RUN ONLY FIRST TIME
+c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+table_exists = c.fetchone()
 
+if not table_exists:
+    c.execute("""
+    CREATE TABLE users (
+        name TEXT,
+        username TEXT PRIMARY KEY,
+        email TEXT,
+        address TEXT,
+        gender TEXT,
+        password TEXT
+    )
+    """)
+    conn.commit()
+    
 c.execute("""
 CREATE TABLE IF NOT EXISTS complaints (
     user TEXT,
