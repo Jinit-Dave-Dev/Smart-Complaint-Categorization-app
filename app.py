@@ -162,22 +162,31 @@ if not os.path.exists("/mount/data"):
 
 conn = sqlite3.connect(DB_PATH, check_same_thread=False)
 c = conn.cursor()
-# RUN ONLY FIRST TIME
-c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
-table_exists = c.fetchone()
+# ✅ SAFE USERS TABLE (PERMANENT FIX)
 
-if not table_exists:
-    c.execute("""
-    CREATE TABLE users (
-        name TEXT,
-        username TEXT PRIMARY KEY,
-        email TEXT,
-        address TEXT,
-        gender TEXT,
-        password TEXT
-    )
-    """)
-    conn.commit()
+# create minimal table first
+c.execute("""
+CREATE TABLE IF NOT EXISTS users (
+    username TEXT PRIMARY KEY
+)
+""")
+
+# add missing columns safely
+columns = {
+    "name": "TEXT",
+    "email": "TEXT",
+    "address": "TEXT",
+    "gender": "TEXT",
+    "password": "TEXT"
+}
+
+for col, typ in columns.items():
+    try:
+        c.execute(f"ALTER TABLE users ADD COLUMN {col} {typ}")
+    except:
+        pass
+
+conn.commit()
     
 c.execute("""
 CREATE TABLE IF NOT EXISTS complaints (
@@ -201,17 +210,6 @@ add_column("status", "TEXT")
 add_column("department", "TEXT")
 add_column("timestamp", "TEXT")
 
-c.execute("""
-CREATE TABLE IF NOT EXISTS users (
-    name TEXT,
-    username TEXT PRIMARY KEY,
-    email TEXT,
-    address TEXT,
-    gender TEXT,
-    password TEXT
-)
-""")
-conn.commit()
 
 # 🔥 AUTO STATUS UPDATE (REAL WORKFLOW)
 rows = c.execute("SELECT id, timestamp, status FROM complaints").fetchall()
